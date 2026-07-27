@@ -1,0 +1,2454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>压坊 · PDF 编辑与办公工具</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: oklch(96.5% 0.012 85);
+    --paper-deep: oklch(93% 0.016 85);
+    --ink: oklch(24% 0.015 75);
+    --ink-soft: oklch(42% 0.015 75);
+    --ink-faint: oklch(62% 0.012 80);
+    --vermilion: oklch(55% 0.19 32);
+    --vermilion-deep: oklch(48% 0.18 32);
+    --r-s: 6px;
+    --r-m: 12px;
+    --serif: "Noto Serif SC", "Songti SC", serif;
+    --sans: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.7;
+    min-height: 100vh;
+    touch-action: manipulation;
+    background-image: radial-gradient(oklch(24% 0.015 75 / 0.035) 1px, transparent 1px);
+    background-size: 5px 5px;
+  }
+  .page { max-width: 720px; margin: 0 auto; padding: 56px 24px 96px; }
+
+  /* ===== 报头 ===== */
+  header { margin-bottom: 32px; }
+  .masthead {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    border-bottom: 3px solid var(--ink);
+    padding-bottom: 6px;
+    margin-bottom: 28px;
+  }
+  .masthead .seal {
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: 15px;
+    color: var(--paper);
+    background: var(--vermilion);
+    padding: 3px 8px;
+    border-radius: 2px;
+    letter-spacing: 0.1em;
+  }
+  .masthead .note { font-size: 13px; color: var(--ink-soft); margin-left: auto; }
+
+  /* ===== 分段切换 ===== */
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .tab {
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: 15px;
+    letter-spacing: 0.03em;
+    padding: 7px 18px;
+    border: 1.5px solid var(--ink);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background-color 140ms ease-out, color 140ms ease-out, transform 100ms ease-out;
+  }
+  .tab:active { transform: scale(0.96); }
+  @media (hover: hover) { .tab:hover { background: var(--paper-deep); } }
+  .tab[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+  @media (hover: hover) { .tab[aria-selected="true"]:hover { background: var(--ink); } }
+  .tab:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--vermilion); }
+
+  /* ===== 面板 ===== */
+  .panel { display: none; margin-top: 40px; }
+  .panel.active { display: block; }
+
+  h1 {
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: clamp(40px, 8vw, 64px);
+    line-height: 1.15;
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+  }
+  h1 em { font-style: normal; color: var(--vermilion); }
+  .subtitle {
+    margin-top: 12px;
+    margin-bottom: 40px;
+    font-size: 15px;
+    color: var(--ink-soft);
+    max-width: 46ch;
+    text-wrap: pretty;
+  }
+
+  /* ===== 投递区 ===== */
+  .dropzone {
+    position: relative;
+    border: 2px solid var(--ink);
+    border-radius: var(--r-m);
+    padding: 48px 32px;
+    text-align: center;
+    cursor: pointer;
+    background: var(--paper);
+    transition: background-color 160ms ease-out, color 160ms ease-out, transform 160ms cubic-bezier(0.16,1,0.3,1);
+    outline: none;
+  }
+  .dropzone:focus-visible { box-shadow: 0 0 0 3px var(--paper), 0 0 0 6px var(--vermilion); }
+  @media (hover: hover) { .dropzone:hover { background: var(--paper-deep); } }
+  .dropzone.dragover { background: var(--ink); color: var(--paper); transform: scale(0.985); }
+  .dropzone.dragover .dz-hint { color: oklch(80% 0.01 85); }
+  .dz-glyph { display: block; width: 48px; height: 48px; margin: 0 auto 16px; }
+  .dz-main { font-family: var(--serif); font-weight: 600; font-size: 20px; letter-spacing: -0.012em; }
+  .dz-hint { margin-top: 8px; font-size: 13px; color: var(--ink-faint); transition: color 160ms ease-out; }
+  input[type="file"] { display: none; }
+
+  .section-label {
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: 15px;
+    letter-spacing: 0.25em;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-label::after { content: ""; height: 1px; flex: 1; background: oklch(24% 0.015 75 / 0.25); }
+
+  /* ===== 裁切台 ===== */
+  .crop-section { margin-top: 40px; display: none; }
+  .crop-section.show { display: block; }
+  .stage {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    line-height: 0;
+    outline: 1px solid rgba(0,0,0,0.1);
+    outline-offset: -1px;
+    border-radius: var(--r-s);
+    overflow: hidden;
+  }
+  .stage img { max-width: 100%; max-height: 480px; display: block; -webkit-user-select: none; user-select: none; pointer-events: none; }
+  .crop-overlay { position: absolute; inset: 0; cursor: crosshair; touch-action: none; }
+  .crop-box {
+    position: absolute;
+    border: 1.5px solid var(--paper);
+    outline: 1px solid var(--ink);
+    box-shadow: 0 0 0 9999px oklch(24% 0.015 75 / 0.55);
+    cursor: move;
+    display: none;
+  }
+  .crop-box.show { display: block; }
+  .handle {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    background:
+      radial-gradient(circle at center, var(--paper) 0 4px, transparent 4px),
+      radial-gradient(circle at center, var(--ink) 0 6px, transparent 6px);
+  }
+  .handle[data-dir="nw"] { top: -11px; left: -11px; cursor: nwse-resize; }
+  .handle[data-dir="n"]  { top: -11px; left: calc(50% - 11px); cursor: ns-resize; }
+  .handle[data-dir="ne"] { top: -11px; right: -11px; cursor: nesw-resize; }
+  .handle[data-dir="e"]  { top: calc(50% - 11px); right: -11px; cursor: ew-resize; }
+  .handle[data-dir="se"] { bottom: -11px; right: -11px; cursor: nwse-resize; }
+  .handle[data-dir="s"]  { bottom: -11px; left: calc(50% - 11px); cursor: ns-resize; }
+  .handle[data-dir="sw"] { bottom: -11px; left: -11px; cursor: nesw-resize; }
+  .handle[data-dir="w"]  { top: calc(50% - 11px); left: -11px; cursor: ew-resize; }
+  .crop-toolbar {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .link-btn {
+    background: none;
+    border: none;
+    font: inherit;
+    color: var(--vermilion-deep);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    padding: 4px 0;
+  }
+  .link-btn:focus-visible { outline: 2px solid var(--vermilion); outline-offset: 2px; }
+
+  /* ===== 力度与格式 ===== */
+  .levels { margin-top: 40px; }
+  .level-group { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .level-group.six { grid-template-columns: repeat(6, 1fr); }
+  .level {
+    position: relative;
+    border: 1.5px solid oklch(24% 0.015 75 / 0.4);
+    border-radius: var(--r-s);
+    padding: 14px 4px;
+    cursor: pointer;
+    text-align: center;
+    background: transparent;
+    transition: border-color 140ms ease-out, background-color 140ms ease-out, transform 100ms ease-out;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .level:active { transform: scale(0.96); }
+  @media (hover: hover) { .level:hover { border-color: var(--ink); } }
+  .level input { position: absolute; opacity: 0; pointer-events: none; }
+  .level .lv-name { font-family: var(--serif); font-weight: 900; font-size: 17px; letter-spacing: 0.02em; }
+  .level:has(input:checked) {
+    border-color: var(--vermilion);
+    background: oklch(55% 0.19 32 / 0.07);
+    box-shadow: inset 0 0 0 1px var(--vermilion);
+  }
+  .level:has(input:checked) .lv-name { color: var(--vermilion-deep); }
+  .level:has(input:focus-visible) { box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--vermilion); }
+  .lv-current {
+    margin-top: 12px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    min-height: 1.7em;
+    font-variant-numeric: tabular-nums;
+  }
+  .lv-current b { color: var(--vermilion-deep); font-weight: 600; }
+
+  .formats { margin-top: 28px; }
+  .format-group { display: flex; gap: 10px; flex-wrap: wrap; }
+  .format {
+    border: 1.5px solid oklch(24% 0.015 75 / 0.4);
+    border-radius: 999px;
+    padding: 6px 18px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: border-color 140ms ease-out, background-color 140ms ease-out, transform 100ms ease-out;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .format:active { transform: scale(0.96); }
+  @media (hover: hover) { .format:hover { border-color: var(--ink); } }
+  .format input { position: absolute; opacity: 0; pointer-events: none; }
+  .format:has(input:checked) {
+    border-color: var(--vermilion);
+    background: oklch(55% 0.19 32 / 0.07);
+    color: var(--vermilion-deep);
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px var(--vermilion);
+  }
+  .format:has(input:focus-visible) { box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--vermilion); }
+  .format.unsupported { opacity: 0.4; pointer-events: none; }
+  .format-hint { margin-top: 10px; font-size: 13px; color: var(--ink-faint); }
+
+  /* ===== 开始 ===== */
+  .start-row { margin-top: 28px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .start-hint { font-size: 13.5px; color: var(--ink-faint); }
+  .btn {
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: 17px;
+    letter-spacing: 0.05em;
+    border: none;
+    border-radius: 999px;
+    padding: 14px 32px;
+    cursor: pointer;
+    transition: transform 100ms ease-out, background-color 140ms ease-out;
+    min-height: 44px;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--paper), 0 0 0 6px var(--vermilion); }
+  .btn-primary { background: var(--vermilion); color: var(--paper); }
+  @media (hover: hover) { .btn-primary:hover { background: var(--vermilion-deep); } }
+  .btn-ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+  @media (hover: hover) { .btn-ghost:hover { background: var(--paper-deep); } }
+  .btn:disabled {
+    background: oklch(24% 0.015 75 / 0.15);
+    color: var(--ink-faint);
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ===== PDF 工作台 ===== */
+  .bench { margin-top: 40px; display: none; }
+  .bench.show { display: block; }
+  .file-line {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 14px;
+    color: var(--ink-soft);
+    margin-bottom: 14px;
+  }
+  .file-line .fname { font-weight: 600; color: var(--ink); word-break: break-all; }
+  .inkbar {
+    height: 14px;
+    border: 1.5px solid var(--ink);
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--paper);
+  }
+  .inkbar .fill { height: 100%; width: 0%; background: var(--ink); transition: width 220ms cubic-bezier(0.16,1,0.3,1); }
+  .progress-text { margin-top: 8px; font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .warn {
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    background: var(--paper-deep);
+    border-radius: var(--r-s);
+    padding: 12px 16px;
+    margin-bottom: 24px;
+  }
+  .warn b { color: var(--vermilion-deep); }
+
+  /* ===== 结果 ===== */
+  .result { display: none; }
+  .result.show { display: block; }
+  .result.standalone { margin-top: 40px; }
+  .result-preview {
+    max-width: 100%;
+    max-height: 280px;
+    display: block;
+    border-radius: var(--r-s);
+    outline: 1px solid rgba(0,0,0,0.1);
+    outline-offset: -1px;
+    margin-bottom: 8px;
+    background: repeating-conic-gradient(oklch(90% 0.01 85) 0% 25%, var(--paper) 0% 50%) 0 0 / 16px 16px;
+  }
+  .compare {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 8px 0 20px;
+    border-top: 3px solid var(--ink);
+    border-bottom: 1px solid oklch(24% 0.015 75 / 0.3);
+    padding: 20px 0;
+  }
+  .num-block { min-width: 0; }
+  .num-block .label { font-size: 12px; letter-spacing: 0.2em; color: var(--ink-faint); margin-bottom: 2px; }
+  .num-block .value {
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: clamp(26px, 6vw, 44px);
+    line-height: 1.1;
+    letter-spacing: -0.022em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .num-block .value small { font-size: 0.45em; font-weight: 600; color: var(--ink-soft); margin-left: 2px; }
+  .num-block.after .value { color: var(--vermilion); }
+  .arrow-glyph { font-family: var(--serif); font-weight: 900; font-size: 28px; color: var(--ink-faint); flex-shrink: 0; }
+  .savings { font-size: 14px; color: var(--ink-soft); margin-bottom: 24px; }
+  .savings strong { color: var(--vermilion-deep); font-variant-numeric: tabular-nums; }
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  .error-box {
+    display: none;
+    margin-top: 24px;
+    background: oklch(55% 0.19 32 / 0.08);
+    border-radius: var(--r-s);
+    padding: 14px 18px;
+    font-size: 14px;
+    color: var(--vermilion-deep);
+  }
+  .error-box.show { display: block; }
+
+  footer {
+    margin-top: 72px;
+    padding-top: 16px;
+    border-top: 1px solid oklch(24% 0.015 75 / 0.25);
+    font-size: 12.5px;
+    color: var(--ink-faint);
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* ===== 图片转 PDF:缩略图队列 ===== */
+  .thumb-list { margin-top: 24px; display: none; flex-direction: column; gap: 10px; }
+  .thumb-list.show { display: flex; }
+  .thumb-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 8px;
+    border: 1.5px solid oklch(24% 0.015 75 / 0.25);
+    border-radius: var(--r-s);
+    background: var(--paper);
+  }
+  .thumb-item img {
+    width: 56px; height: 56px;
+    object-fit: cover;
+    border-radius: 4px;
+    outline: 1px solid rgba(0,0,0,0.1);
+    outline-offset: -1px;
+    flex-shrink: 0;
+    background: var(--paper-deep);
+  }
+  .thumb-meta { min-width: 0; flex: 1; }
+  .thumb-meta .tname { font-size: 14px; font-weight: 600; color: var(--ink); word-break: break-all; line-height: 1.3; }
+  .thumb-meta .tsize { font-size: 12.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .thumb-idx {
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: 15px;
+    color: var(--ink-faint);
+    width: 22px; text-align: center; flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .thumb-ops { display: flex; gap: 2px; flex-shrink: 0; }
+  .icon-btn {
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    border: none; background: transparent;
+    color: var(--ink-soft);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    transition: background-color 120ms ease-out, color 120ms ease-out;
+  }
+  @media (hover: hover) { .icon-btn:hover { background: var(--paper-deep); color: var(--ink); } }
+  .icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .icon-btn.danger { color: var(--vermilion-deep); }
+  .icon-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--vermilion); }
+
+  /* ===== 文本工具 ===== */
+  .text-area {
+    width: 100%;
+    min-height: 220px;
+    resize: vertical;
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1.5px solid var(--ink);
+    border-radius: var(--r-s);
+    padding: 14px 16px;
+    outline: none;
+  }
+  .text-area:focus-visible { box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--vermilion); }
+  .stats {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    gap: 1px;
+    background: oklch(24% 0.015 75 / 0.18);
+    border: 1px solid oklch(24% 0.015 75 / 0.18);
+    border-radius: var(--r-s);
+    overflow: hidden;
+  }
+  .stat { background: var(--paper); padding: 12px 10px; text-align: center; }
+  .stat .sv {
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: 24px;
+    letter-spacing: -0.012em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    line-height: 1.1;
+  }
+  .stat .sl { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+  .tool-row {
+    margin-top: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .chip {
+    font-size: 13.5px;
+    padding: 7px 14px;
+    border: 1.5px solid oklch(24% 0.015 75 / 0.4);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+    transition: border-color 120ms ease-out, background-color 120ms ease-out, transform 100ms ease-out;
+  }
+  .chip:active { transform: scale(0.95); }
+  @media (hover: hover) { .chip:hover { border-color: var(--ink); background: var(--paper-deep); } }
+  .chip:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--vermilion); }
+  .row-label {
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    color: var(--ink-faint);
+    width: 100%;
+    margin-bottom: -2px;
+  }
+  .replace-row { margin-top: 20px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .text-input {
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1.5px solid oklch(24% 0.015 75 / 0.4);
+    border-radius: var(--r-s);
+    padding: 8px 12px;
+    outline: none;
+    min-width: 0;
+    flex: 1 1 130px;
+  }
+  .text-input:focus-visible { border-color: var(--vermilion); }
+  .check-inline { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--ink-soft); cursor: pointer; }
+  .check-inline input { accent-color: var(--vermilion); width: 16px; height: 16px; }
+
+  /* ===== 二维码 ===== */
+  .qr-type { display: flex; gap: 8px; margin-bottom: 20px; }
+  .qr-stage {
+    margin-top: 28px;
+    display: none;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .qr-stage.show { display: flex; }
+  .qr-frame {
+    padding: 18px;
+    background: #ffffff;
+    border-radius: var(--r-s);
+    outline: 1px solid rgba(0,0,0,0.12);
+    outline-offset: -1px;
+    line-height: 0;
+  }
+  .qr-frame img, .qr-frame canvas { display: block; width: 240px; height: 240px; image-rendering: pixelated; }
+  .field-label {
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    color: var(--ink-faint);
+    display: block;
+    margin: 16px 0 6px;
+  }
+  .wifi-fields { display: none; }
+  .wifi-fields.show { display: block; }
+
+  /* ===== PDF 装订台 ===== */
+  .editor-drop { padding: 36px 28px; }
+  .editor-workspace { display: none; margin-top: 36px; }
+  .editor-workspace.show { display: block; }
+  .editor-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+    color: var(--ink-soft);
+    font-size: 13.5px;
+  }
+  .editor-summary strong { color: var(--ink); font-family: var(--serif); font-size: 17px; }
+  .editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 0 18px;
+    border-top: 3px solid var(--ink);
+    border-bottom: 1px solid oklch(24% 0.015 75 / 0.25);
+  }
+  .tool-button {
+    min-height: 40px;
+    padding: 8px 13px;
+    border: 1.5px solid oklch(24% 0.015 75 / 0.42);
+    border-radius: var(--r-s);
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    cursor: pointer;
+    transition: border-color 120ms ease-out, background-color 120ms ease-out, transform 100ms ease-out;
+  }
+  .tool-button:active { transform: scale(0.96); }
+  @media (hover: hover) { .tool-button:hover { border-color: var(--ink); background: var(--paper-deep); } }
+  .tool-button:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--vermilion); }
+  .tool-button:disabled { opacity: 0.38; cursor: not-allowed; transform: none; }
+  .tool-button.danger { color: var(--vermilion-deep); border-color: oklch(55% 0.19 32 / 0.45); }
+  .tool-separator { width: 1px; align-self: stretch; margin: 2px 2px; background: oklch(24% 0.015 75 / 0.18); }
+  .page-rack {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px 12px;
+    margin-top: 20px;
+  }
+  .pdf-page-card {
+    position: relative;
+    min-width: 0;
+    padding: 8px 8px 7px;
+    border: 1.5px solid oklch(24% 0.015 75 / 0.3);
+    border-radius: var(--r-s);
+    background: var(--paper-deep);
+    color: var(--ink);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 140ms ease-out, background-color 140ms ease-out, transform 100ms ease-out;
+  }
+  .pdf-page-card:active { transform: scale(0.98); }
+  @media (hover: hover) { .pdf-page-card:hover { border-color: var(--ink); } }
+  .pdf-page-card[aria-pressed="true"] {
+    border-color: var(--vermilion);
+    background: oklch(55% 0.19 32 / 0.07);
+    box-shadow: inset 0 0 0 1px var(--vermilion);
+  }
+  .pdf-page-card:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--vermilion); }
+  .pdf-page-preview {
+    width: 100%;
+    height: 178px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: oklch(88% 0.01 85);
+    border-radius: 3px;
+  }
+  .pdf-page-preview canvas { display: block; max-width: 100%; max-height: 100%; background: #fff; box-shadow: 0 2px 10px rgba(37,32,25,0.12); }
+  .pdf-page-caption { display: flex; justify-content: space-between; gap: 6px; margin-top: 7px; font-size: 12px; color: var(--ink-soft); }
+  .pdf-page-caption .page-no { font-family: var(--serif); font-weight: 900; color: var(--ink); }
+  .pdf-page-caption .page-source { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .page-mark {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--vermilion);
+    color: var(--paper);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .editor-status { min-height: 1.7em; margin-top: 12px; color: var(--ink-soft); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .editor-status.busy { color: var(--vermilion-deep); }
+  .editor-save-row { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+  .pdf-cropper {
+    display: none;
+    margin-top: 36px;
+    padding-top: 18px;
+    border-top: 3px solid var(--ink);
+  }
+  .pdf-cropper.show { display: block; }
+  .pdf-crop-stage {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    line-height: 0;
+    background: oklch(88% 0.01 85);
+    overflow: hidden;
+    box-shadow: 0 3px 18px rgba(37,32,25,0.12);
+  }
+  .pdf-crop-stage canvas { display: block; max-width: 100%; max-height: 660px; width: auto; height: auto; }
+  .pdf-crop-overlay { position: absolute; inset: 0; cursor: crosshair; touch-action: none; }
+  .pdf-crop-selection {
+    position: absolute;
+    border: 1.5px solid var(--paper);
+    outline: 1px solid var(--ink);
+    box-shadow: 0 0 0 9999px oklch(24% 0.015 75 / 0.58);
+    pointer-events: none;
+  }
+  .pdf-crop-note { margin-top: 10px; max-width: 58ch; color: var(--ink-soft); font-size: 13px; }
+  .pdf-crop-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+
+  @media (max-width: 560px) {
+    .page { padding: 36px 18px 64px; }
+    .level-group { gap: 6px; }
+    .level { padding: 12px 2px; }
+    .level .lv-name { font-size: 15px; }
+    .compare { flex-wrap: wrap; }
+    .arrow-glyph { display: none; }
+    .num-block { flex: 1 1 40%; }
+    .tab { padding: 7px 13px; font-size: 13.5px; }
+    .stat .sv { font-size: 20px; }
+    .page-rack { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 8px; }
+    .pdf-page-preview { height: 148px; }
+    .tool-separator { display: none; }
+    .tool-button { flex: 1 1 calc(50% - 8px); }
+  }
+  @media (max-width: 400px) {
+    .level-group.six .lv-name { font-size: 13px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="masthead">
+      <span class="seal" id="seal">压坊</span>
+      <span class="note">纯本地处理 · 文件不上传</span>
+    </div>
+    <div class="tabs" role="tablist" aria-label="工具选择">
+      <button class="tab" id="tabPdf" role="tab" aria-selected="true" data-tab="pdf">PDF 压缩</button>
+      <button class="tab" id="tabEdit" role="tab" aria-selected="false" data-tab="edit">PDF 装订台</button>
+      <button class="tab" id="tabImg" role="tab" aria-selected="false" data-tab="img">图片压缩 · 裁切</button>
+      <button class="tab" id="tabI2p" role="tab" aria-selected="false" data-tab="i2p">图片转 PDF</button>
+      <button class="tab" id="tabTxt" role="tab" aria-selected="false" data-tab="txt">文本工具</button>
+      <button class="tab" id="tabQr" role="tab" aria-selected="false" data-tab="qr">二维码</button>
+    </div>
+  </header>
+
+  <!-- ================= PDF 面板 ================= -->
+  <section class="panel active" id="pdfPanel" role="tabpanel" aria-labelledby="tabPdf">
+    <h1>把 PDF<br>压得<em>更小</em>。</h1>
+    <p class="subtitle">拖入文件,选一档力度,几秒后取走轻了许多的 PDF。全部计算都在你的浏览器里完成,文件不会离开这台设备。</p>
+
+    <div class="dropzone" id="pdfDrop" role="button" tabindex="0" aria-label="点击或拖拽上传 PDF 文件">
+      <svg class="dz-glyph" aria-hidden="true" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 6h16l10 10v26H12z"/>
+        <path d="M28 6v10h10"/>
+        <path d="M19 26h10M19 33h10"/>
+      </svg>
+      <div class="dz-main">把 PDF 拖到这里,或点击选择文件</div>
+      <div class="dz-hint">单个 .pdf 文件 · 建议 200 MB 以内</div>
+      <input type="file" id="pdfInput" accept="application/pdf,.pdf">
+    </div>
+
+    <section class="levels" aria-label="压缩等级">
+      <div class="section-label">压缩力度</div>
+      <div class="level-group" role="radiogroup">
+        <label class="level"><input type="radio" name="pdfLevel" value="minimal"><div class="lv-name">微压</div></label>
+        <label class="level"><input type="radio" name="pdfLevel" value="light"><div class="lv-name">轻压</div></label>
+        <label class="level"><input type="radio" name="pdfLevel" value="medium" checked><div class="lv-name">中压</div></label>
+        <label class="level"><input type="radio" name="pdfLevel" value="heavy"><div class="lv-name">重压</div></label>
+        <label class="level"><input type="radio" name="pdfLevel" value="extreme"><div class="lv-name">极限</div></label>
+      </div>
+      <p class="lv-current" id="pdfLevelDesc"></p>
+
+      <div class="start-row">
+        <button class="btn btn-primary" id="pdfStart" disabled>开始压缩</button>
+        <span class="start-hint" id="pdfStartHint">先在上方投入一个 PDF 文件</span>
+      </div>
+    </section>
+
+    <section class="bench" id="pdfBench" aria-live="polite">
+      <div class="file-line">
+        <span class="fname" id="pdfFileName"></span>
+        <span id="pdfFileMeta"></span>
+      </div>
+      <div id="pdfProgressWrap">
+        <div class="inkbar"><div class="fill" id="pdfInkFill"></div></div>
+        <div class="progress-text" id="pdfProgressText">正在读取…</div>
+      </div>
+      <div class="result" id="pdfResult">
+        <div class="compare">
+          <div class="num-block">
+            <div class="label">压缩前</div>
+            <div class="value" id="pdfSizeBefore">—</div>
+          </div>
+          <div class="arrow-glyph" aria-hidden="true">→</div>
+          <div class="num-block after">
+            <div class="label">压缩后</div>
+            <div class="value" id="pdfSizeAfter">—</div>
+          </div>
+        </div>
+        <p class="savings" id="pdfSavings"></p>
+        <div class="warn" id="pdfWarn"></div>
+        <div class="actions">
+          <button class="btn btn-primary" id="pdfDownload">下载压缩后的 PDF</button>
+          <button class="btn btn-ghost" id="pdfReset">再压一份</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="error-box" id="pdfError"></div>
+  </section>
+
+  <!-- ================= PDF 装订台 ================= -->
+  <section class="panel" id="editPanel" role="tabpanel" aria-labelledby="tabEdit">
+    <h1>把页面<br><em>重新装订</em>。</h1>
+    <p class="subtitle">合并或插入 PDF，按页删除、复制、排序、旋转与裁剪，也可导出单页图片或整册图片。所有页面只在本机浏览器内处理。</p>
+
+    <div class="dropzone editor-drop" id="editDrop" role="button" tabindex="0" aria-label="点击或拖拽导入一个或多个 PDF 文件">
+      <svg class="dz-glyph" aria-hidden="true" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 8h22v28H8zM18 12h22v28H18"/>
+        <path d="M24 21h10M24 27h10"/>
+      </svg>
+      <div class="dz-main">把 PDF 拖到这里，或点击选择（可多选）</div>
+      <div class="dz-hint">一次选择多个文件即自动合并 · 后续仍可继续追加</div>
+      <input type="file" id="editInput" accept="application/pdf,.pdf" multiple>
+    </div>
+    <input type="file" id="editInsertInput" accept="application/pdf,.pdf" multiple>
+
+    <section class="editor-workspace" id="editWorkspace" aria-live="polite">
+      <div class="section-label">页面编辑</div>
+      <div class="editor-summary">
+        <span><strong id="editPageCount">0 页</strong> · 点击缩略图选择页面</span>
+        <span id="editSourceCount"></span>
+      </div>
+      <div class="editor-toolbar" role="toolbar" aria-label="页面编辑工具">
+        <button class="tool-button" id="editInsert">插入 PDF</button>
+        <button class="tool-button" id="editBlank">插入空白页</button>
+        <button class="tool-button" id="editDuplicate">复制本页</button>
+        <span class="tool-separator" aria-hidden="true"></span>
+        <button class="tool-button" id="editPrev" aria-label="将当前页向前移动">前移</button>
+        <button class="tool-button" id="editNext" aria-label="将当前页向后移动">后移</button>
+        <button class="tool-button" id="editRotateLeft" aria-label="将当前页向左旋转九十度">左转 90°</button>
+        <button class="tool-button" id="editRotateRight" aria-label="将当前页向右旋转九十度">右转 90°</button>
+        <button class="tool-button" id="editCrop">裁剪本页</button>
+        <button class="tool-button danger" id="editDelete">删除本页</button>
+      </div>
+
+      <div class="page-rack" id="editPageRack" role="list" aria-label="PDF 页面列表"></div>
+      <p class="editor-status" id="editStatus">等待导入 PDF…</p>
+
+      <section class="pdf-cropper" id="editCropper" aria-label="页面裁剪工具">
+        <div class="section-label">裁剪当前页</div>
+        <div class="pdf-crop-stage" id="editCropStage">
+          <canvas id="editCropCanvas"></canvas>
+          <div class="pdf-crop-overlay" id="editCropOverlay">
+            <div class="pdf-crop-selection" id="editCropSelection"></div>
+          </div>
+        </div>
+        <p class="pdf-crop-note" id="editCropNote">在页面上拖出要保留的范围。裁剪只改变可见页面边界，不会降低文字和图形清晰度。</p>
+        <div class="pdf-crop-actions">
+          <button class="btn btn-primary" id="editCropApply">应用裁剪</button>
+          <button class="btn btn-ghost" id="editCropReset">恢复整页</button>
+          <button class="btn btn-ghost" id="editCropCancel">取消</button>
+        </div>
+      </section>
+
+      <div class="editor-save-row">
+        <button class="btn btn-primary" id="editSave">保存 PDF</button>
+        <button class="btn btn-ghost" id="editExportOne">当前页转 PNG</button>
+        <button class="btn btn-ghost" id="editExportAll">全部页面转图片（ZIP）</button>
+        <button class="link-btn" id="editClear">清空装订台</button>
+      </div>
+    </section>
+
+    <div class="error-box" id="editError"></div>
+  </section>
+
+  <!-- ================= 图片面板 ================= -->
+  <section class="panel" id="imgPanel" role="tabpanel" aria-labelledby="tabImg">
+    <h1>把图片<br>裁好、压<em>小</em>。</h1>
+    <p class="subtitle">拖入图片,拉一个裁切框(可选)。只想裁切不想压缩?把力度选到「原图」即可。全部计算在浏览器本地完成。</p>
+
+    <div class="dropzone" id="imgDrop" role="button" tabindex="0" aria-label="点击或拖拽上传图片">
+      <svg class="dz-glyph" aria-hidden="true" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="8" y="10" width="32" height="28" rx="2"/>
+        <circle cx="18" cy="20" r="3"/>
+        <path d="M8 33l9-9 7 7 6-6 10 10"/>
+      </svg>
+      <div class="dz-main">把图片拖到这里,或点击选择文件</div>
+      <div class="dz-hint">JPG · PNG · WebP · GIF(取首帧)</div>
+      <input type="file" id="imgInput" accept="image/*">
+    </div>
+
+    <section class="crop-section" id="imgCropSection">
+      <div class="section-label">自由裁切</div>
+      <div class="stage" id="imgStage">
+        <img id="imgPhoto" alt="待处理的图片">
+        <div class="crop-overlay" id="imgOverlay">
+          <div class="crop-box" id="imgCropBox">
+            <div class="handle" data-dir="nw"></div><div class="handle" data-dir="n"></div>
+            <div class="handle" data-dir="ne"></div><div class="handle" data-dir="e"></div>
+            <div class="handle" data-dir="se"></div><div class="handle" data-dir="s"></div>
+            <div class="handle" data-dir="sw"></div><div class="handle" data-dir="w"></div>
+          </div>
+        </div>
+      </div>
+      <div class="crop-toolbar">
+        <span id="imgCropInfo"></span>
+        <button class="link-btn" id="imgCropReset" type="button">取消裁切</button>
+      </div>
+    </section>
+
+    <section class="levels" aria-label="压缩等级">
+      <div class="section-label">压缩力度</div>
+      <div class="level-group six" role="radiogroup">
+        <label class="level"><input type="radio" name="imgLevel" value="none"><div class="lv-name">原图</div></label>
+        <label class="level"><input type="radio" name="imgLevel" value="minimal"><div class="lv-name">微压</div></label>
+        <label class="level"><input type="radio" name="imgLevel" value="light"><div class="lv-name">轻压</div></label>
+        <label class="level"><input type="radio" name="imgLevel" value="medium" checked><div class="lv-name">中压</div></label>
+        <label class="level"><input type="radio" name="imgLevel" value="heavy"><div class="lv-name">重压</div></label>
+        <label class="level"><input type="radio" name="imgLevel" value="extreme"><div class="lv-name">极限</div></label>
+      </div>
+      <p class="lv-current" id="imgLevelDesc"></p>
+
+      <div class="formats">
+        <div class="section-label">输出格式</div>
+        <div class="format-group" role="radiogroup">
+          <label class="format" id="imgFmtWebp"><input type="radio" name="imgFormat" value="image/webp" checked>WebP</label>
+          <label class="format"><input type="radio" name="imgFormat" value="image/jpeg">JPEG</label>
+          <label class="format"><input type="radio" name="imgFormat" value="image/png">PNG</label>
+        </div>
+        <p class="format-hint" id="imgFormatHint">WebP 通常最小;JPEG 兼容性最好且不支持透明;PNG 无损,不受力度影响,适合截图与图标。</p>
+      </div>
+
+      <div class="start-row">
+        <button class="btn btn-primary" id="imgStart" disabled>开始压缩</button>
+        <span class="start-hint" id="imgStartHint">先在上方投入一张图片</span>
+      </div>
+    </section>
+
+    <section class="result standalone" id="imgResult" aria-live="polite">
+      <div class="section-label">结果</div>
+      <img class="result-preview" id="imgResultPreview" alt="处理结果预览">
+      <div class="compare">
+        <div class="num-block">
+          <div class="label">处理前</div>
+          <div class="value" id="imgSizeBefore">—</div>
+        </div>
+        <div class="arrow-glyph" aria-hidden="true">→</div>
+        <div class="num-block after">
+          <div class="label">处理后</div>
+          <div class="value" id="imgSizeAfter">—</div>
+        </div>
+      </div>
+      <p class="savings" id="imgSavings"></p>
+      <div class="actions">
+        <button class="btn btn-primary" id="imgDownload">下载图片</button>
+        <button class="btn btn-ghost" id="imgReset">换一张图</button>
+      </div>
+    </section>
+
+    <div class="error-box" id="imgError"></div>
+  </section>
+
+  <!-- ================= 图片转 PDF 面板 ================= -->
+  <section class="panel" id="i2pPanel" role="tabpanel" aria-labelledby="tabI2p">
+    <h1>把图片<br>装订成 <em>PDF</em>。</h1>
+    <p class="subtitle">拖入多张图片(可分次追加),调整顺序,每张图占一页,生成一份 PDF。发票、截图、扫描件凑成一份文档最常用。</p>
+
+    <div class="dropzone" id="i2pDrop" role="button" tabindex="0" aria-label="点击或拖拽上传图片">
+      <svg class="dz-glyph" aria-hidden="true" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="6" y="12" width="26" height="20" rx="2"/>
+        <path d="M12 26l5-5 4 4 4-4 5 5"/>
+        <circle cx="16" cy="19" r="2"/>
+        <path d="M16 36h26V16M40 40V20"/>
+      </svg>
+      <div class="dz-main">把图片拖到这里,或点击选择(可多选)</div>
+      <div class="dz-hint">JPG · PNG · WebP · 按添加顺序排页</div>
+      <input type="file" id="i2pInput" accept="image/*" multiple>
+    </div>
+
+    <div class="thumb-list" id="i2pList"></div>
+
+    <section class="levels" id="i2pOptions" style="display:none">
+      <div class="section-label">页面尺寸</div>
+      <div class="level-group" role="radiogroup" style="grid-template-columns:repeat(3,1fr)">
+        <label class="level"><input type="radio" name="i2pPage" value="fit" checked><div class="lv-name">贴合图片</div></label>
+        <label class="level"><input type="radio" name="i2pPage" value="a4p"><div class="lv-name">A4 纵向</div></label>
+        <label class="level"><input type="radio" name="i2pPage" value="a4l"><div class="lv-name">A4 横向</div></label>
+      </div>
+      <p class="lv-current" id="i2pPageDesc"></p>
+
+      <div class="start-row">
+        <button class="btn btn-primary" id="i2pStart" disabled>生成 PDF</button>
+        <span class="start-hint" id="i2pHint">先在上方投入图片</span>
+      </div>
+    </section>
+
+    <div class="error-box" id="i2pError"></div>
+  </section>
+
+  <!-- ================= 文本工具面板 ================= -->
+  <section class="panel" id="txtPanel" role="tabpanel" aria-labelledby="tabTxt">
+    <h1>把文字<br>数清、<em>理顺</em>。</h1>
+    <p class="subtitle">粘贴或输入文本,实时统计字数,一键去重、排序、清理空行、转换大小写与全半角。全部在本地完成。</p>
+
+    <textarea class="text-area" id="txtArea" placeholder="在此粘贴或输入文本…" aria-label="文本输入区"></textarea>
+
+    <div class="stats" id="txtStats">
+      <div class="stat"><div class="sv" id="stChar">0</div><div class="sl">字符(含空格)</div></div>
+      <div class="stat"><div class="sv" id="stCharNs">0</div><div class="sl">字符(不含空格)</div></div>
+      <div class="stat"><div class="sv" id="stCn">0</div><div class="sl">中文字</div></div>
+      <div class="stat"><div class="sv" id="stWord">0</div><div class="sl">英文单词</div></div>
+      <div class="stat"><div class="sv" id="stLine">0</div><div class="sl">行数</div></div>
+      <div class="stat"><div class="sv" id="stPara">0</div><div class="sl">段落</div></div>
+    </div>
+
+    <div class="tool-row">
+      <span class="row-label">整理</span>
+      <button class="chip" data-op="trim">去首尾空格</button>
+      <button class="chip" data-op="collapse">合并多余空格</button>
+      <button class="chip" data-op="blank">删空行</button>
+      <button class="chip" data-op="dedup">按行去重</button>
+      <button class="chip" data-op="sortAsc">升序排序</button>
+      <button class="chip" data-op="sortDesc">降序排序</button>
+    </div>
+    <div class="tool-row">
+      <span class="row-label">转换</span>
+      <button class="chip" data-op="upper">全大写</button>
+      <button class="chip" data-op="lower">全小写</button>
+      <button class="chip" data-op="half">全角转半角</button>
+    </div>
+
+    <div class="replace-row">
+      <span class="row-label">查找替换</span>
+      <input class="text-input" id="txtFind" placeholder="查找">
+      <input class="text-input" id="txtRepl" placeholder="替换为">
+      <label class="check-inline"><input type="checkbox" id="txtRegex">正则</label>
+      <button class="chip" id="txtDoReplace">替换全部</button>
+    </div>
+
+    <div class="tool-row" style="margin-top:28px">
+      <button class="btn btn-primary" id="txtCopy">复制结果</button>
+      <button class="btn btn-ghost" id="txtDownload">下载 .txt</button>
+      <button class="btn btn-ghost" id="txtClear">清空</button>
+    </div>
+    <div class="error-box" id="txtError"></div>
+  </section>
+
+  <!-- ================= 二维码面板 ================= -->
+  <section class="panel" id="qrPanel" role="tabpanel" aria-labelledby="tabQr">
+    <h1>把内容<br>织成<em>码</em>。</h1>
+    <p class="subtitle">网址、文本,或办公室 WiFi,一键生成二维码并下载 PNG。纯本地生成,内容不外传。</p>
+
+    <div class="qr-type" role="radiogroup" aria-label="二维码类型">
+      <label class="format"><input type="radio" name="qrType" value="text" checked>文本 · 网址</label>
+      <label class="format"><input type="radio" name="qrType" value="wifi">WiFi</label>
+    </div>
+
+    <div id="qrTextFields">
+      <textarea class="text-area" id="qrText" style="min-height:120px" placeholder="输入网址或任意文本…" aria-label="二维码内容"></textarea>
+    </div>
+
+    <div class="wifi-fields" id="qrWifiFields">
+      <label class="field-label">网络名称 (SSID)</label>
+      <input class="text-input" id="qrSsid" style="width:100%;flex:none" placeholder="WiFi 名称">
+      <label class="field-label">密码</label>
+      <input class="text-input" id="qrPass" style="width:100%;flex:none" placeholder="留空表示无密码">
+      <label class="field-label">加密方式</label>
+      <div class="qr-type" style="margin-bottom:0">
+        <label class="format"><input type="radio" name="qrEnc" value="WPA" checked>WPA/WPA2</label>
+        <label class="format"><input type="radio" name="qrEnc" value="nopass">无密码</label>
+      </div>
+    </div>
+
+    <div class="tool-row" style="margin-top:24px">
+      <button class="btn btn-primary" id="qrGen">生成二维码</button>
+    </div>
+
+    <div class="qr-stage" id="qrStage">
+      <div class="qr-frame" id="qrFrame"></div>
+      <div class="actions">
+        <button class="btn btn-primary" id="qrDownload">下载 PNG</button>
+      </div>
+    </div>
+    <div class="error-box" id="qrError"></div>
+  </section>
+
+  <footer>
+    <span>压坊 · 单文件 HTML 工具</span>
+    <span>PDF 由 pdf.js 与 pdf-lib 驱动 · 图片纯 Canvas 处理</span>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+/* ===== 顶部工具切换 ===== */
+(function () {
+  'use strict';
+  var seal = document.getElementById('seal');
+  var tabs = [].slice.call(document.querySelectorAll('.tab'));
+  var panels = {
+    pdf: document.getElementById('pdfPanel'),
+    edit: document.getElementById('editPanel'),
+    img: document.getElementById('imgPanel'),
+    i2p: document.getElementById('i2pPanel'),
+    txt: document.getElementById('txtPanel'),
+    qr:  document.getElementById('qrPanel')
+  };
+  var seals = { pdf: '压纸机', edit: '装订台', img: '压像机', i2p: '拼册机', txt: '码字机', qr: '织码机' };
+
+  function activate(name) {
+    tabs.forEach(function (t) { t.setAttribute('aria-selected', t.dataset.tab === name ? 'true' : 'false'); });
+    Object.keys(panels).forEach(function (k) { panels[k].classList.toggle('active', k === name); });
+    seal.textContent = seals[name] || '压坊';
+  }
+  tabs.forEach(function (t) { t.addEventListener('click', function () { activate(t.dataset.tab); }); });
+  activate('pdf');
+})();
+
+/* ===== 通用工具函数 ===== */
+function formatSize(bytes) {
+  if (bytes >= 1048576) return { n: (bytes / 1048576).toFixed(bytes >= 104857600 ? 0 : 1), u: 'MB' };
+  if (bytes >= 1024) return { n: Math.round(bytes / 1024).toString(), u: 'KB' };
+  return { n: String(bytes), u: 'B' };
+}
+function renderSize(el, bytes) {
+  var s = formatSize(bytes);
+  el.innerHTML = '';
+  el.appendChild(document.createTextNode(s.n));
+  var small = document.createElement('small');
+  small.textContent = s.u;
+  el.appendChild(small);
+}
+function animateNumber(el, targetBytes, duration) {
+  var start = performance.now();
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { renderSize(el, targetBytes); return; }
+  function frame(now) {
+    var t = Math.min((now - start) / duration, 1);
+    var eased = 1 - Math.pow(1 - t, 4);
+    renderSize(el, Math.round(targetBytes * eased));
+    if (t < 1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ================= PDF 装订台 ================= */
+(function () {
+  'use strict';
+  var errorBox = document.getElementById('editError');
+  if (!window.pdfjsLib || !window.PDFLib) {
+    errorBox.textContent = 'PDF 依赖库加载失败，请检查网络连接后刷新页面。';
+    errorBox.classList.add('show');
+    return;
+  }
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  var drop = document.getElementById('editDrop');
+  var input = document.getElementById('editInput');
+  var insertInput = document.getElementById('editInsertInput');
+  var workspace = document.getElementById('editWorkspace');
+  var rack = document.getElementById('editPageRack');
+  var pageCount = document.getElementById('editPageCount');
+  var sourceCount = document.getElementById('editSourceCount');
+  var status = document.getElementById('editStatus');
+  var insertBtn = document.getElementById('editInsert');
+  var blankBtn = document.getElementById('editBlank');
+  var duplicateBtn = document.getElementById('editDuplicate');
+  var prevBtn = document.getElementById('editPrev');
+  var nextBtn = document.getElementById('editNext');
+  var rotateLeftBtn = document.getElementById('editRotateLeft');
+  var rotateRightBtn = document.getElementById('editRotateRight');
+  var cropBtn = document.getElementById('editCrop');
+  var deleteBtn = document.getElementById('editDelete');
+  var saveBtn = document.getElementById('editSave');
+  var exportOneBtn = document.getElementById('editExportOne');
+  var exportAllBtn = document.getElementById('editExportAll');
+  var clearBtn = document.getElementById('editClear');
+  var cropper = document.getElementById('editCropper');
+  var cropStage = document.getElementById('editCropStage');
+  var cropCanvas = document.getElementById('editCropCanvas');
+  var cropOverlay = document.getElementById('editCropOverlay');
+  var cropSelectionEl = document.getElementById('editCropSelection');
+  var cropApplyBtn = document.getElementById('editCropApply');
+  var cropResetBtn = document.getElementById('editCropReset');
+  var cropCancelBtn = document.getElementById('editCropCancel');
+
+  var sources = [];
+  var pages = [];
+  var selectedIndex = -1;
+  var nextPageId = 1;
+  var busy = false;
+  var renderVersion = 0;
+  var cropViewport = null;
+  var cropSelection = null;
+  var cropDrag = null;
+
+  function showError(msg) { errorBox.textContent = msg; errorBox.classList.add('show'); }
+  function clearError() { errorBox.classList.remove('show'); }
+  function setStatus(text, isBusy) {
+    status.textContent = text;
+    status.classList.toggle('busy', !!isBusy);
+  }
+  function normalizeRotation(angle) { return ((angle % 360) + 360) % 360; }
+  function sourceName(model) { return model.sourceIndex === null ? '空白页' : sources[model.sourceIndex].name; }
+  function baseName(name) { return (name || '文档').replace(/\.pdf$/i, '').replace(/[\\/:*?"<>|]+/g, '-'); }
+  function downloadBlob(blob, name) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(function () { URL.revokeObjectURL(url); }, 1200);
+  }
+  function canvasBlob(canvas) {
+    return new Promise(function (resolve, reject) {
+      canvas.toBlob(function (blob) { blob ? resolve(blob) : reject(new Error('图片编码失败')); }, 'image/png');
+    });
+  }
+
+  function refreshControls() {
+    var has = pages.length > 0;
+    var hasSelection = selectedIndex >= 0 && selectedIndex < pages.length;
+    insertBtn.disabled = busy;
+    blankBtn.disabled = busy;
+    duplicateBtn.disabled = busy || !hasSelection;
+    prevBtn.disabled = busy || !hasSelection || selectedIndex === 0;
+    nextBtn.disabled = busy || !hasSelection || selectedIndex === pages.length - 1;
+    rotateLeftBtn.disabled = busy || !hasSelection;
+    rotateRightBtn.disabled = busy || !hasSelection;
+    cropBtn.disabled = busy || !hasSelection || pages[selectedIndex].sourceIndex === null;
+    deleteBtn.disabled = busy || !hasSelection;
+    saveBtn.disabled = busy || !has;
+    exportOneBtn.disabled = busy || !hasSelection;
+    exportAllBtn.disabled = busy || !has;
+    clearBtn.disabled = busy || !has;
+    drop.setAttribute('aria-disabled', busy ? 'true' : 'false');
+  }
+  function setBusy(value) { busy = value; refreshControls(); }
+
+  function cropRectForViewport(viewport, crop) {
+    if (!crop) return { x: 0, y: 0, w: viewport.width, h: viewport.height };
+    var p1 = viewport.convertToViewportPoint(crop.x, crop.y);
+    var p2 = viewport.convertToViewportPoint(crop.x + crop.width, crop.y + crop.height);
+    var x = Math.min(p1[0], p2[0]);
+    var y = Math.min(p1[1], p2[1]);
+    return {
+      x: Math.max(0, x),
+      y: Math.max(0, y),
+      w: Math.min(viewport.width, Math.max(p1[0], p2[0])) - Math.max(0, x),
+      h: Math.min(viewport.height, Math.max(p1[1], p2[1])) - Math.max(0, y)
+    };
+  }
+
+  async function renderLogicalPage(model, scale) {
+    var out = document.createElement('canvas');
+    if (model.sourceIndex === null) {
+      out.width = Math.max(1, Math.round(model.blankSize[0] * scale));
+      out.height = Math.max(1, Math.round(model.blankSize[1] * scale));
+      var blankCtx = out.getContext('2d', { alpha: false });
+      blankCtx.fillStyle = '#ffffff';
+      blankCtx.fillRect(0, 0, out.width, out.height);
+      return out;
+    }
+    var pdfPage = await sources[model.sourceIndex].pdfJs.getPage(model.pageIndex);
+    var rotation = normalizeRotation(pdfPage.rotate + model.rotation);
+    var viewport = pdfPage.getViewport({ scale: scale, rotation: rotation });
+    var full = document.createElement('canvas');
+    full.width = Math.max(1, Math.round(viewport.width));
+    full.height = Math.max(1, Math.round(viewport.height));
+    var fullCtx = full.getContext('2d', { alpha: false });
+    fullCtx.fillStyle = '#ffffff';
+    fullCtx.fillRect(0, 0, full.width, full.height);
+    await pdfPage.render({ canvasContext: fullCtx, viewport: viewport }).promise;
+    var rect = cropRectForViewport(viewport, model.crop);
+    out.width = Math.max(1, Math.round(rect.w));
+    out.height = Math.max(1, Math.round(rect.h));
+    var outCtx = out.getContext('2d', { alpha: false });
+    outCtx.fillStyle = '#ffffff';
+    outCtx.fillRect(0, 0, out.width, out.height);
+    outCtx.drawImage(full, rect.x, rect.y, rect.w, rect.h, 0, 0, out.width, out.height);
+    pdfPage.cleanup();
+    return out;
+  }
+
+  async function thumbnailScale(model) {
+    if (model.sourceIndex === null) {
+      return Math.min(150 / model.blankSize[0], 158 / model.blankSize[1]);
+    }
+    var pdfPage = await sources[model.sourceIndex].pdfJs.getPage(model.pageIndex);
+    var viewport = pdfPage.getViewport({ scale: 1, rotation: normalizeRotation(pdfPage.rotate + model.rotation) });
+    var rect = cropRectForViewport(viewport, model.crop);
+    pdfPage.cleanup();
+    return Math.min(150 / rect.w, 158 / rect.h, 0.55);
+  }
+
+  async function renderThumbnail(canvas, model, version) {
+    try {
+      var scale = await thumbnailScale(model);
+      var rendered = await renderLogicalPage(model, scale);
+      if (version !== renderVersion || !document.body.contains(canvas)) return;
+      canvas.width = rendered.width;
+      canvas.height = rendered.height;
+      canvas.getContext('2d', { alpha: false }).drawImage(rendered, 0, 0);
+    } catch (err) {
+      if (version === renderVersion) {
+        canvas.width = 120;
+        canvas.height = 150;
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#f5f0e6'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#9a2e20'; ctx.font = '13px sans-serif'; ctx.fillText('预览失败', 31, 78);
+      }
+    }
+  }
+
+  function selectPage(index) {
+    if (index < 0 || index >= pages.length) return;
+    selectedIndex = index;
+    closeCropper();
+    [].slice.call(rack.querySelectorAll('.pdf-page-card')).forEach(function (card, i) {
+      card.setAttribute('aria-pressed', i === selectedIndex ? 'true' : 'false');
+    });
+    refreshControls();
+    setStatus('已选择第 ' + (selectedIndex + 1) + ' 页 · ' + sourceName(pages[selectedIndex]), false);
+  }
+
+  function renderPages() {
+    var version = ++renderVersion;
+    rack.innerHTML = '';
+    pageCount.textContent = pages.length + ' 页';
+    sourceCount.textContent = sources.length + ' 份来源文件';
+    workspace.classList.toggle('show', pages.length > 0);
+    if (!pages.length) {
+      selectedIndex = -1;
+      setStatus('等待导入 PDF…', false);
+      refreshControls();
+      return;
+    }
+    if (selectedIndex < 0) selectedIndex = 0;
+    if (selectedIndex >= pages.length) selectedIndex = pages.length - 1;
+    pages.forEach(function (model, index) {
+      var card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'pdf-page-card';
+      card.setAttribute('role', 'listitem');
+      card.setAttribute('aria-pressed', index === selectedIndex ? 'true' : 'false');
+      card.setAttribute('aria-label', '第 ' + (index + 1) + ' 页，来源 ' + sourceName(model));
+      var preview = document.createElement('span');
+      preview.className = 'pdf-page-preview';
+      var canvas = document.createElement('canvas');
+      preview.appendChild(canvas);
+      var caption = document.createElement('span');
+      caption.className = 'pdf-page-caption';
+      var no = document.createElement('span');
+      no.className = 'page-no';
+      no.textContent = String(index + 1).padStart(2, '0');
+      var src = document.createElement('span');
+      src.className = 'page-source';
+      src.textContent = sourceName(model);
+      caption.appendChild(no);
+      caption.appendChild(src);
+      card.appendChild(preview);
+      card.appendChild(caption);
+      if (model.crop || model.rotation) {
+        var mark = document.createElement('span');
+        mark.className = 'page-mark';
+        mark.textContent = model.crop && model.rotation ? '已改' : (model.crop ? '裁' : '转');
+        card.appendChild(mark);
+      }
+      card.addEventListener('click', function () { selectPage(index); });
+      rack.appendChild(card);
+      renderThumbnail(canvas, model, version);
+    });
+    refreshControls();
+  }
+
+  async function addFiles(fileList, insertAfterSelection) {
+    var files = [].slice.call(fileList || []);
+    if (!files.length || busy) return;
+    var invalid = files.find(function (file) { return !/\.pdf$/i.test(file.name) && file.type !== 'application/pdf'; });
+    if (invalid) { showError('只支持 PDF 文件，收到的是：' + (invalid.type || invalid.name)); return; }
+    clearError();
+    setBusy(true);
+    var insertAt = insertAfterSelection && selectedIndex >= 0 ? selectedIndex + 1 : pages.length;
+    var firstInserted = insertAt;
+    var addedPages = 0;
+    try {
+      for (var f = 0; f < files.length; f++) {
+        setStatus('正在读取 ' + files[f].name + '…', true);
+        var bytes = new Uint8Array(await files[f].arrayBuffer());
+        var pdfJs = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+        var sourceIndex = sources.length;
+        sources.push({ name: files[f].name, bytes: bytes, pdfJs: pdfJs, libDoc: null });
+        var incoming = [];
+        for (var p = 1; p <= pdfJs.numPages; p++) {
+          incoming.push({ id: nextPageId++, sourceIndex: sourceIndex, pageIndex: p, rotation: 0, crop: null });
+        }
+        pages.splice.apply(pages, [insertAt, 0].concat(incoming));
+        insertAt += incoming.length;
+        addedPages += incoming.length;
+      }
+      selectedIndex = firstInserted;
+      renderPages();
+      setStatus('已加入 ' + files.length + ' 份 PDF，共 ' + addedPages + ' 页。', false);
+      workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) {
+      var msg = String(err && err.message || err);
+      if (/password/i.test(msg)) showError('有 PDF 已加密，需先解除密码保护后再导入。');
+      else showError('PDF 读取失败：' + msg);
+      renderPages();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function insertBlankPage() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      var size = [595.28, 841.89];
+      if (selectedIndex >= 0) {
+        var current = pages[selectedIndex];
+        if (current.sourceIndex === null) size = current.blankSize.slice();
+        else {
+          var p = await sources[current.sourceIndex].pdfJs.getPage(current.pageIndex);
+          var vp = p.getViewport({ scale: 1, rotation: normalizeRotation(p.rotate + current.rotation) });
+          size = [vp.width, vp.height];
+          p.cleanup();
+        }
+      }
+      var at = selectedIndex >= 0 ? selectedIndex + 1 : pages.length;
+      pages.splice(at, 0, { id: nextPageId++, sourceIndex: null, pageIndex: 0, rotation: 0, crop: null, blankSize: size });
+      selectedIndex = at;
+      renderPages();
+      setStatus('已在第 ' + (at + 1) + ' 页插入空白页。', false);
+    } finally { setBusy(false); }
+  }
+
+  function duplicatePage() {
+    if (selectedIndex < 0 || busy) return;
+    var original = pages[selectedIndex];
+    var copy = Object.assign({}, original, {
+      id: nextPageId++,
+      crop: original.crop ? Object.assign({}, original.crop) : null,
+      blankSize: original.blankSize ? original.blankSize.slice() : undefined
+    });
+    pages.splice(selectedIndex + 1, 0, copy);
+    selectedIndex += 1;
+    renderPages();
+    setStatus('已复制为第 ' + (selectedIndex + 1) + ' 页。', false);
+  }
+
+  function movePage(delta) {
+    var target = selectedIndex + delta;
+    if (selectedIndex < 0 || target < 0 || target >= pages.length || busy) return;
+    var moved = pages.splice(selectedIndex, 1)[0];
+    pages.splice(target, 0, moved);
+    selectedIndex = target;
+    renderPages();
+    setStatus('当前页已移到第 ' + (selectedIndex + 1) + ' 页。', false);
+  }
+
+  function rotatePage(delta) {
+    if (selectedIndex < 0 || busy) return;
+    var model = pages[selectedIndex];
+    if (model.sourceIndex === null) {
+      model.blankSize = [model.blankSize[1], model.blankSize[0]];
+    } else {
+      model.rotation = normalizeRotation(model.rotation + delta);
+    }
+    renderPages();
+    setStatus('第 ' + (selectedIndex + 1) + ' 页已旋转。', false);
+  }
+
+  function deletePage() {
+    if (selectedIndex < 0 || busy) return;
+    var removedAt = selectedIndex;
+    pages.splice(selectedIndex, 1);
+    if (selectedIndex >= pages.length) selectedIndex = pages.length - 1;
+    closeCropper();
+    renderPages();
+    setStatus('已从装订台移除第 ' + (removedAt + 1) + ' 页；原文件未被修改。', false);
+  }
+
+  function renderCropSelection() {
+    if (!cropSelection || !cropCanvas.width || !cropCanvas.height) return;
+    cropSelectionEl.style.left = (cropSelection.x / cropCanvas.width * 100) + '%';
+    cropSelectionEl.style.top = (cropSelection.y / cropCanvas.height * 100) + '%';
+    cropSelectionEl.style.width = (cropSelection.w / cropCanvas.width * 100) + '%';
+    cropSelectionEl.style.height = (cropSelection.h / cropCanvas.height * 100) + '%';
+  }
+
+  async function openCropper() {
+    if (selectedIndex < 0 || busy) return;
+    var model = pages[selectedIndex];
+    if (model.sourceIndex === null) { showError('空白页无需裁剪。'); return; }
+    clearError();
+    setBusy(true);
+    setStatus('正在准备裁剪视图…', true);
+    try {
+      var pdfPage = await sources[model.sourceIndex].pdfJs.getPage(model.pageIndex);
+      var base = pdfPage.getViewport({ scale: 1, rotation: normalizeRotation(pdfPage.rotate + model.rotation) });
+      var scale = Math.min(1.45, 660 / base.width, 760 / base.height);
+      cropViewport = pdfPage.getViewport({ scale: scale, rotation: normalizeRotation(pdfPage.rotate + model.rotation) });
+      cropCanvas.width = Math.round(cropViewport.width);
+      cropCanvas.height = Math.round(cropViewport.height);
+      var ctx = cropCanvas.getContext('2d', { alpha: false });
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
+      await pdfPage.render({ canvasContext: ctx, viewport: cropViewport }).promise;
+      pdfPage.cleanup();
+      cropSelection = cropRectForViewport(cropViewport, model.crop);
+      cropper.classList.add('show');
+      renderCropSelection();
+      setStatus('拖动框选保留范围，然后应用裁剪。', false);
+      cropper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) {
+      showError('裁剪视图加载失败：' + String(err && err.message || err));
+    } finally { setBusy(false); }
+  }
+
+  function closeCropper() {
+    cropper.classList.remove('show');
+    cropViewport = null;
+    cropSelection = null;
+    cropDrag = null;
+  }
+
+  function cropPointer(e) {
+    var rect = cropOverlay.getBoundingClientRect();
+    return {
+      x: Math.min(cropCanvas.width, Math.max(0, (e.clientX - rect.left) * cropCanvas.width / rect.width)),
+      y: Math.min(cropCanvas.height, Math.max(0, (e.clientY - rect.top) * cropCanvas.height / rect.height))
+    };
+  }
+  cropOverlay.addEventListener('pointerdown', function (e) {
+    if (!cropViewport || busy) return;
+    e.preventDefault();
+    var p = cropPointer(e);
+    cropDrag = { x: p.x, y: p.y };
+    cropSelection = { x: p.x, y: p.y, w: 1, h: 1 };
+    cropOverlay.setPointerCapture(e.pointerId);
+    renderCropSelection();
+  });
+  cropOverlay.addEventListener('pointermove', function (e) {
+    if (!cropDrag) return;
+    var p = cropPointer(e);
+    cropSelection = {
+      x: Math.min(cropDrag.x, p.x), y: Math.min(cropDrag.y, p.y),
+      w: Math.abs(p.x - cropDrag.x), h: Math.abs(p.y - cropDrag.y)
+    };
+    renderCropSelection();
+  });
+  function endCropDrag() { cropDrag = null; }
+  cropOverlay.addEventListener('pointerup', endCropDrag);
+  cropOverlay.addEventListener('pointercancel', endCropDrag);
+
+  function applyCrop() {
+    if (!cropViewport || !cropSelection || selectedIndex < 0) return;
+    if (cropSelection.w < 12 || cropSelection.h < 12) {
+      showError('裁剪范围太小，请重新拖选。');
+      return;
+    }
+    var p1 = cropViewport.convertToPdfPoint(cropSelection.x, cropSelection.y);
+    var p2 = cropViewport.convertToPdfPoint(cropSelection.x + cropSelection.w, cropSelection.y + cropSelection.h);
+    pages[selectedIndex].crop = {
+      x: Math.min(p1[0], p2[0]), y: Math.min(p1[1], p2[1]),
+      width: Math.abs(p2[0] - p1[0]), height: Math.abs(p2[1] - p1[1])
+    };
+    clearError();
+    closeCropper();
+    renderPages();
+    setStatus('第 ' + (selectedIndex + 1) + ' 页已裁剪；保存 PDF 后生效。', false);
+  }
+  function resetCrop() {
+    if (selectedIndex < 0) return;
+    pages[selectedIndex].crop = null;
+    closeCropper();
+    renderPages();
+    setStatus('第 ' + (selectedIndex + 1) + ' 页已恢复整页。', false);
+  }
+
+  async function savePdf() {
+    if (!pages.length || busy) return;
+    clearError();
+    setBusy(true);
+    try {
+      setStatus('正在装订页面…', true);
+      var out = await PDFLib.PDFDocument.create();
+      for (var i = 0; i < pages.length; i++) {
+        var model = pages[i];
+        setStatus('正在装订第 ' + (i + 1) + ' / ' + pages.length + ' 页…', true);
+        if (model.sourceIndex === null) {
+          out.addPage(model.blankSize);
+          continue;
+        }
+        var source = sources[model.sourceIndex];
+        if (!source.libDoc) source.libDoc = await PDFLib.PDFDocument.load(source.bytes.slice());
+        var copied = (await out.copyPages(source.libDoc, [model.pageIndex - 1]))[0];
+        if (model.crop) copied.setCropBox(model.crop.x, model.crop.y, model.crop.width, model.crop.height);
+        if (model.rotation) {
+          copied.setRotation(PDFLib.degrees(normalizeRotation(copied.getRotation().angle + model.rotation)));
+        }
+        out.addPage(copied);
+      }
+      var bytes = await out.save();
+      var name = (sources.length ? baseName(sources[0].name) : '新文档') + '-已编辑.pdf';
+      downloadBlob(new Blob([bytes], { type: 'application/pdf' }), name);
+      setStatus('已生成 ' + pages.length + ' 页 PDF。', false);
+    } catch (err) {
+      showError('保存失败：' + String(err && err.message || err));
+      setStatus('保存未完成。', false);
+    } finally { setBusy(false); }
+  }
+
+  async function exportCurrentPage() {
+    if (selectedIndex < 0 || busy) return;
+    clearError();
+    setBusy(true);
+    try {
+      setStatus('正在渲染第 ' + (selectedIndex + 1) + ' 页图片…', true);
+      var canvas = await renderLogicalPage(pages[selectedIndex], 2);
+      var blob = await canvasBlob(canvas);
+      downloadBlob(blob, baseName(sourceName(pages[selectedIndex])) + '-第' + (selectedIndex + 1) + '页.png');
+      setStatus('第 ' + (selectedIndex + 1) + ' 页已导出为 PNG。', false);
+    } catch (err) {
+      showError('图片导出失败：' + String(err && err.message || err));
+    } finally { setBusy(false); }
+  }
+
+  async function exportAllPages() {
+    if (!pages.length || busy) return;
+    if (!window.JSZip) { showError('ZIP 依赖库加载失败，仍可逐页导出 PNG。'); return; }
+    clearError();
+    setBusy(true);
+    try {
+      var zip = new JSZip();
+      for (var i = 0; i < pages.length; i++) {
+        setStatus('正在渲染图片 ' + (i + 1) + ' / ' + pages.length + '…', true);
+        var canvas = await renderLogicalPage(pages[i], 2);
+        zip.file('page-' + String(i + 1).padStart(3, '0') + '.png', await canvasBlob(canvas));
+      }
+      setStatus('正在打包 ZIP…', true);
+      var blob = await zip.generateAsync({ type: 'blob' });
+      var name = (sources.length ? baseName(sources[0].name) : '新文档') + '-页面图片.zip';
+      downloadBlob(blob, name);
+      setStatus('已导出全部 ' + pages.length + ' 页图片。', false);
+    } catch (err) {
+      showError('全部页面导出失败：' + String(err && err.message || err));
+      setStatus('导出未完成。', false);
+    } finally { setBusy(false); }
+  }
+
+  function clearAll() {
+    if (busy) return;
+    sources.forEach(function (source) { try { source.pdfJs.destroy(); } catch (ignore) {} });
+    sources = [];
+    pages = [];
+    selectedIndex = -1;
+    closeCropper();
+    clearError();
+    renderPages();
+    drop.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  drop.addEventListener('click', function () { if (!busy) input.click(); });
+  drop.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && !busy) { e.preventDefault(); input.click(); }
+  });
+  input.addEventListener('change', function () { addFiles(input.files, false); input.value = ''; });
+  insertInput.addEventListener('change', function () { addFiles(insertInput.files, true); insertInput.value = ''; });
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); if (!busy) drop.classList.add('dragover'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('dragover'); });
+  });
+  drop.addEventListener('drop', function (e) {
+    if (!busy && e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files, false);
+  });
+
+  insertBtn.addEventListener('click', function () { if (!busy) insertInput.click(); });
+  blankBtn.addEventListener('click', insertBlankPage);
+  duplicateBtn.addEventListener('click', duplicatePage);
+  prevBtn.addEventListener('click', function () { movePage(-1); });
+  nextBtn.addEventListener('click', function () { movePage(1); });
+  rotateLeftBtn.addEventListener('click', function () { rotatePage(-90); });
+  rotateRightBtn.addEventListener('click', function () { rotatePage(90); });
+  cropBtn.addEventListener('click', openCropper);
+  deleteBtn.addEventListener('click', deletePage);
+  cropApplyBtn.addEventListener('click', applyCrop);
+  cropResetBtn.addEventListener('click', resetCrop);
+  cropCancelBtn.addEventListener('click', function () { closeCropper(); setStatus('已取消裁剪。', false); });
+  saveBtn.addEventListener('click', savePdf);
+  exportOneBtn.addEventListener('click', exportCurrentPage);
+  exportAllBtn.addEventListener('click', exportAllPages);
+  clearBtn.addEventListener('click', clearAll);
+  refreshControls();
+})();
+
+/* ================= PDF 压缩 ================= */
+(function () {
+  'use strict';
+  var deps = window.pdfjsLib && window.PDFLib;
+  var errorBox = document.getElementById('pdfError');
+  if (!deps) {
+    errorBox.textContent = '依赖库加载失败,请检查网络连接后刷新页面(需要访问 cdnjs.cloudflare.com)。';
+    errorBox.classList.add('show');
+    return;
+  }
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  var LEVELS = {
+    minimal: { maxDim: 2600, quality: 0.88, label: '微压' },
+    light:   { maxDim: 2200, quality: 0.78, label: '轻压' },
+    medium:  { maxDim: 1700, quality: 0.60, label: '中压' },
+    heavy:   { maxDim: 1300, quality: 0.40, label: '重压' },
+    extreme: { maxDim: 950,  quality: 0.25, label: '极限' }
+  };
+  var LEVEL_DESC = {
+    minimal: '清晰度几乎无损,体积略降',
+    light:   '画质优先,清晰度接近原件',
+    medium:  '画质与体积平衡,适合日常发送',
+    heavy:   '体积优先,画质明显降低',
+    extreme: '不惜画质换最小体积'
+  };
+
+  var drop = document.getElementById('pdfDrop');
+  var fileInput = document.getElementById('pdfInput');
+  var bench = document.getElementById('pdfBench');
+  var fileNameEl = document.getElementById('pdfFileName');
+  var fileMetaEl = document.getElementById('pdfFileMeta');
+  var progressWrap = document.getElementById('pdfProgressWrap');
+  var inkFill = document.getElementById('pdfInkFill');
+  var progressText = document.getElementById('pdfProgressText');
+  var result = document.getElementById('pdfResult');
+  var sizeBeforeEl = document.getElementById('pdfSizeBefore');
+  var sizeAfterEl = document.getElementById('pdfSizeAfter');
+  var savingsText = document.getElementById('pdfSavings');
+  var warnText = document.getElementById('pdfWarn');
+  var downloadBtn = document.getElementById('pdfDownload');
+  var resetBtn = document.getElementById('pdfReset');
+  var startBtn = document.getElementById('pdfStart');
+  var startHint = document.getElementById('pdfStartHint');
+  var levelDesc = document.getElementById('pdfLevelDesc');
+
+  var busy = false;
+  var pendingFile = null;
+  var outputBlobUrl = null;
+  var outputFileName = '';
+
+  function showError(msg) { errorBox.textContent = msg; errorBox.classList.add('show'); }
+  function clearError() { errorBox.classList.remove('show'); }
+  function currentLevel() {
+    var c = document.querySelector('input[name="pdfLevel"]:checked');
+    return LEVELS[c ? c.value : 'medium'];
+  }
+  function currentKey() {
+    var c = document.querySelector('input[name="pdfLevel"]:checked');
+    return c ? c.value : 'medium';
+  }
+  function updateLevelDesc() {
+    var k = currentKey();
+    levelDesc.innerHTML = '<b>' + LEVELS[k].label + '</b> — ' + LEVEL_DESC[k];
+  }
+  function setProgress(ratio, text) {
+    inkFill.style.width = Math.round(ratio * 100) + '%';
+    progressText.textContent = text;
+  }
+
+  async function compress(file) {
+    if (busy) return;
+    busy = true;
+    clearError();
+    if (outputBlobUrl) { URL.revokeObjectURL(outputBlobUrl); outputBlobUrl = null; }
+
+    bench.classList.add('show');
+    result.classList.remove('show');
+    progressWrap.style.display = '';
+    fileNameEl.textContent = file.name;
+    fileMetaEl.textContent = '';
+    setProgress(0, '正在读取文件…');
+    startBtn.disabled = true;
+    startHint.textContent = '压缩中…';
+
+    var level = currentLevel();
+
+    try {
+      var buf = await file.arrayBuffer();
+      var pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      var total = pdf.numPages;
+      fileMetaEl.textContent = '共 ' + total + ' 页 · ' + level.label;
+
+      var outDoc = await PDFLib.PDFDocument.create();
+      var canvas = document.createElement('canvas');
+      var ctx = canvas.getContext('2d', { alpha: false });
+
+      for (var i = 1; i <= total; i++) {
+        setProgress((i - 1) / total, '正在压缩第 ' + i + ' / ' + total + ' 页…');
+        var page = await pdf.getPage(i);
+        var vp1 = page.getViewport({ scale: 1 });
+        var scale = Math.min(2, level.maxDim / Math.max(vp1.width, vp1.height));
+        var vp = page.getViewport({ scale: scale });
+        canvas.width = Math.round(vp.width);
+        canvas.height = Math.round(vp.height);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport: vp }).promise;
+        var dataUrl = canvas.toDataURL('image/jpeg', level.quality);
+        var jpg = await outDoc.embedJpg(dataUrl);
+        var outPage = outDoc.addPage([vp1.width, vp1.height]);
+        outPage.drawImage(jpg, { x: 0, y: 0, width: vp1.width, height: vp1.height });
+        page.cleanup();
+        setProgress(i / total, '正在压缩第 ' + i + ' / ' + total + ' 页…');
+      }
+
+      setProgress(1, '正在生成 PDF…');
+      var outBytes = await outDoc.save();
+      pdf.destroy();
+      canvas.width = canvas.height = 0;
+
+      var blob = new Blob([outBytes], { type: 'application/pdf' });
+      outputBlobUrl = URL.createObjectURL(blob);
+      outputFileName = file.name.replace(/\.pdf$/i, '') + '-压缩.pdf';
+
+      progressWrap.style.display = 'none';
+      result.classList.add('show');
+      renderSize(sizeBeforeEl, file.size);
+      animateNumber(sizeAfterEl, blob.size, 900);
+
+      var saved = file.size - blob.size;
+      if (saved > 0) {
+        var pct = Math.round((saved / file.size) * 100);
+        savingsText.innerHTML = '体积减少 <strong>' + pct + '%</strong>,省下 <strong>' +
+          formatSize(saved).n + ' ' + formatSize(saved).u + '</strong>。';
+        warnText.innerHTML = '压缩通过重新渲染页面实现,输出的 PDF 中<b>文字将变为图片</b>,无法再选中或复制。对清晰度不满意可换「微压」重试。';
+      } else {
+        savingsText.innerHTML = '压缩后反而更大了(多 ' + formatSize(-saved).n + ' ' + formatSize(-saved).u + ')。';
+        warnText.innerHTML = '这个 PDF 以文字为主、本身已很紧凑,重渲染成图片不划算。<b>建议直接使用原文件</b>,或换「极限」再试一次。';
+      }
+    } catch (err) {
+      progressWrap.style.display = 'none';
+      var msg = String(err && err.message || err);
+      if (/password/i.test(msg)) showError('这个 PDF 已加密,需要先解除密码保护才能压缩。');
+      else if (/Invalid PDF/i.test(msg)) showError('文件无法解析,可能已损坏或并非有效的 PDF。');
+      else showError('压缩失败:' + msg);
+    } finally {
+      busy = false;
+      startBtn.disabled = !pendingFile;
+      startHint.textContent = pendingFile ? '可换一档力度再压一次' : '先在上方投入一个 PDF 文件';
+    }
+  }
+
+  function acceptFile(file) {
+    if (!file) return;
+    if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') {
+      showError('只支持 PDF 文件,收到的是:' + (file.type || file.name));
+      return;
+    }
+    clearError();
+    pendingFile = file;
+    bench.classList.add('show');
+    result.classList.remove('show');
+    progressWrap.style.display = 'none';
+    fileNameEl.textContent = file.name;
+    var s = formatSize(file.size);
+    fileMetaEl.textContent = s.n + ' ' + s.u + ' · 待压缩';
+    startBtn.disabled = false;
+    startHint.textContent = '已就绪,选好力度后点击开始';
+    startBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  drop.addEventListener('click', function () { if (!busy) fileInput.click(); });
+  drop.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!busy) fileInput.click(); }
+  });
+  fileInput.addEventListener('change', function () { acceptFile(fileInput.files[0]); fileInput.value = ''; });
+
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('dragover'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('dragover'); });
+  });
+  drop.addEventListener('drop', function (e) {
+    var files = e.dataTransfer && e.dataTransfer.files;
+    if (files && files.length) acceptFile(files[0]);
+  });
+
+  startBtn.addEventListener('click', function () { if (pendingFile && !busy) compress(pendingFile); });
+  document.querySelectorAll('input[name="pdfLevel"]').forEach(function (r) { r.addEventListener('change', updateLevelDesc); });
+  updateLevelDesc();
+
+  downloadBtn.addEventListener('click', function () {
+    if (!outputBlobUrl) return;
+    var a = document.createElement('a');
+    a.href = outputBlobUrl; a.download = outputFileName;
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+  resetBtn.addEventListener('click', function () {
+    pendingFile = null;
+    startBtn.disabled = true;
+    startHint.textContent = '先在上方投入一个 PDF 文件';
+    bench.classList.remove('show');
+    result.classList.remove('show');
+    clearError();
+    drop.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    fileInput.click();
+  });
+})();
+
+/* ================= 图片压缩 · 裁切 ================= */
+(function () {
+  'use strict';
+  var LEVELS = {
+    none:    { maxDim: 0,    quality: 1.0,  label: '原图', desc: '不缩放、不降质,仅裁切并按所选格式导出(配合 PNG 为无损)' },
+    minimal: { maxDim: 0,    quality: 0.92, label: '微压', desc: '保持原尺寸,质量 92%,几乎看不出差别' },
+    light:   { maxDim: 2600, quality: 0.80, label: '轻压', desc: '最长边不超过 2600px,质量 80%,画质优先' },
+    medium:  { maxDim: 2000, quality: 0.65, label: '中压', desc: '最长边不超过 2000px,质量 65%,日常分享' },
+    heavy:   { maxDim: 1400, quality: 0.45, label: '重压', desc: '最长边不超过 1400px,质量 45%,聊天发图够用' },
+    extreme: { maxDim: 1000, quality: 0.28, label: '极限', desc: '最长边不超过 1000px,质量 28%,只求最小' }
+  };
+  var EXT = { 'image/webp': '.webp', 'image/jpeg': '.jpg', 'image/png': '.png' };
+
+  var drop = document.getElementById('imgDrop');
+  var fileInput = document.getElementById('imgInput');
+  var cropSection = document.getElementById('imgCropSection');
+  var photo = document.getElementById('imgPhoto');
+  var overlay = document.getElementById('imgOverlay');
+  var cropBox = document.getElementById('imgCropBox');
+  var cropInfo = document.getElementById('imgCropInfo');
+  var cropReset = document.getElementById('imgCropReset');
+  var levelDesc = document.getElementById('imgLevelDesc');
+  var startBtn = document.getElementById('imgStart');
+  var startHint = document.getElementById('imgStartHint');
+  var result = document.getElementById('imgResult');
+  var resultPreview = document.getElementById('imgResultPreview');
+  var sizeBeforeEl = document.getElementById('imgSizeBefore');
+  var sizeAfterEl = document.getElementById('imgSizeAfter');
+  var savingsText = document.getElementById('imgSavings');
+  var downloadBtn = document.getElementById('imgDownload');
+  var resetBtn = document.getElementById('imgReset');
+  var errorBox = document.getElementById('imgError');
+
+  var srcFile = null, srcImage = null, crop = null;
+  var outputBlobUrl = null, outputFileName = '', busy = false;
+
+  var webpOK = document.createElement('canvas').toDataURL('image/webp').indexOf('data:image/webp') === 0;
+  if (!webpOK) {
+    var fmtWebp = document.getElementById('imgFmtWebp');
+    fmtWebp.classList.add('unsupported');
+    fmtWebp.querySelector('input').disabled = true;
+    document.querySelector('input[name="imgFormat"][value="image/jpeg"]').checked = true;
+    document.getElementById('imgFormatHint').textContent = '当前浏览器不支持导出 WebP,已改用 JPEG。PNG 无损,不受力度影响。';
+  }
+
+  function showError(msg) { errorBox.textContent = msg; errorBox.classList.add('show'); }
+  function clearError() { errorBox.classList.remove('show'); }
+  function currentLevel() {
+    var c = document.querySelector('input[name="imgLevel"]:checked');
+    return LEVELS[c ? c.value : 'medium'];
+  }
+  function currentKey() {
+    var c = document.querySelector('input[name="imgLevel"]:checked');
+    return c ? c.value : 'medium';
+  }
+  function currentFormat() {
+    var c = document.querySelector('input[name="imgFormat"]:checked');
+    return c ? c.value : 'image/jpeg';
+  }
+  function updateLevelDesc() {
+    var lv = currentLevel();
+    levelDesc.innerHTML = '<b>' + lv.label + '</b> — ' + lv.desc;
+    startBtn.textContent = currentKey() === 'none' ? '裁切并导出' : '开始压缩';
+  }
+
+  /* ---- 裁切交互 ---- */
+  function dispScale() { return photo.clientWidth / srcImage.naturalWidth; }
+  function renderCrop() {
+    if (!srcImage) return;
+    if (!crop) {
+      cropBox.classList.remove('show');
+      cropInfo.textContent = '未裁切 — 在图上拖一个框即可选取范围(' +
+        srcImage.naturalWidth + ' × ' + srcImage.naturalHeight + ' px)';
+      return;
+    }
+    var k = dispScale();
+    cropBox.style.left = (crop.x * k) + 'px';
+    cropBox.style.top = (crop.y * k) + 'px';
+    cropBox.style.width = (crop.w * k) + 'px';
+    cropBox.style.height = (crop.h * k) + 'px';
+    cropBox.classList.add('show');
+    cropInfo.textContent = '已选 ' + Math.round(crop.w) + ' × ' + Math.round(crop.h) + ' px';
+  }
+
+  var drag = null;
+  overlay.addEventListener('pointerdown', function (e) {
+    if (!srcImage || busy) return;
+    e.preventDefault();
+    var r = overlay.getBoundingClientRect();
+    var px = e.clientX - r.left, py = e.clientY - r.top;
+    var k = dispScale();
+    var t = e.target;
+    if (t.dataset && t.dataset.dir && crop) {
+      drag = { type: 'resize', dir: t.dataset.dir, start: { x: crop.x, y: crop.y, w: crop.w, h: crop.h } };
+    } else if (t === cropBox && crop) {
+      drag = { type: 'move', ox: px / k - crop.x, oy: py / k - crop.y };
+    } else {
+      crop = { x: px / k, y: py / k, w: 0, h: 0 };
+      drag = { type: 'draw', ax: px / k, ay: py / k };
+    }
+    overlay.setPointerCapture(e.pointerId);
+  });
+  overlay.addEventListener('pointermove', function (e) {
+    if (!drag || !srcImage) return;
+    var r = overlay.getBoundingClientRect();
+    var k = dispScale();
+    var W = srcImage.naturalWidth, H = srcImage.naturalHeight;
+    var px = Math.min(Math.max(e.clientX - r.left, 0), r.width) / k;
+    var py = Math.min(Math.max(e.clientY - r.top, 0), r.height) / k;
+    if (drag.type === 'draw') {
+      crop = { x: Math.min(drag.ax, px), y: Math.min(drag.ay, py), w: Math.abs(px - drag.ax), h: Math.abs(py - drag.ay) };
+    } else if (drag.type === 'move') {
+      crop.x = Math.min(Math.max(px - drag.ox, 0), W - crop.w);
+      crop.y = Math.min(Math.max(py - drag.oy, 0), H - crop.h);
+    } else if (drag.type === 'resize') {
+      var s = drag.start, d = drag.dir;
+      var x1 = s.x, y1 = s.y, x2 = s.x + s.w, y2 = s.y + s.h;
+      if (d.indexOf('w') > -1) x1 = Math.min(px, x2 - 1);
+      if (d.indexOf('e') > -1) x2 = Math.max(px, x1 + 1);
+      if (d.indexOf('n') > -1) y1 = Math.min(py, y2 - 1);
+      if (d.indexOf('s') > -1) y2 = Math.max(py, y1 + 1);
+      crop = { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+    }
+    renderCrop();
+  });
+  function endDrag() {
+    if (!drag) return;
+    if (drag.type === 'draw' && crop && (crop.w * dispScale() < 8 || crop.h * dispScale() < 8)) crop = null;
+    drag = null;
+    renderCrop();
+  }
+  overlay.addEventListener('pointerup', endDrag);
+  overlay.addEventListener('pointercancel', endDrag);
+  cropReset.addEventListener('click', function () { crop = null; renderCrop(); });
+  window.addEventListener('resize', function () { if (srcImage) renderCrop(); });
+
+  /* ---- 文件接收 ---- */
+  function acceptFile(file) {
+    if (!file) return;
+    if (!/^image\//.test(file.type)) {
+      showError('只支持图片文件,收到的是:' + (file.type || file.name));
+      return;
+    }
+    clearError();
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function () {
+      srcFile = file; srcImage = img; crop = null;
+      photo.src = url;
+      cropSection.classList.add('show');
+      result.classList.remove('show');
+      startBtn.disabled = false;
+      startHint.textContent = '已就绪 · ' + img.naturalWidth + ' × ' + img.naturalHeight + ' px · ' +
+        formatSize(file.size).n + ' ' + formatSize(file.size).u;
+      renderCrop();
+      cropSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); showError('图片无法解码,可能已损坏或格式不受支持。'); };
+    img.src = url;
+  }
+
+  drop.addEventListener('click', function () { fileInput.click(); });
+  drop.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  });
+  fileInput.addEventListener('change', function () { acceptFile(fileInput.files[0]); fileInput.value = ''; });
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('dragover'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('dragover'); });
+  });
+  drop.addEventListener('drop', function (e) {
+    var files = e.dataTransfer && e.dataTransfer.files;
+    if (files && files.length) acceptFile(files[0]);
+  });
+
+  /* ---- 处理 ---- */
+  function process() {
+    if (!srcImage || busy) return;
+    busy = true; clearError();
+    startBtn.disabled = true;
+    startHint.textContent = '处理中…';
+
+    var lv = currentLevel();
+    var fmt = currentFormat();
+    var region = crop || { x: 0, y: 0, w: srcImage.naturalWidth, h: srcImage.naturalHeight };
+    var scale = lv.maxDim > 0 ? Math.min(1, lv.maxDim / Math.max(region.w, region.h)) : 1;
+    var outW = Math.max(1, Math.round(region.w * scale));
+    var outH = Math.max(1, Math.round(region.h * scale));
+
+    var canvas = document.createElement('canvas');
+    canvas.width = outW; canvas.height = outH;
+    var ctx = canvas.getContext('2d');
+    if (fmt === 'image/jpeg') { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, outW, outH); }
+    ctx.drawImage(srcImage, region.x, region.y, region.w, region.h, 0, 0, outW, outH);
+
+    canvas.toBlob(function (blob) {
+      busy = false;
+      startBtn.disabled = false;
+      startHint.textContent = '可调整裁切或力度后再处理一次';
+      if (!blob) { showError('导出失败,请换一种输出格式重试。'); return; }
+
+      if (outputBlobUrl) URL.revokeObjectURL(outputBlobUrl);
+      outputBlobUrl = URL.createObjectURL(blob);
+      var suffix = (currentKey() === 'none' && crop) ? '-裁切' : '-压缩';
+      outputFileName = srcFile.name.replace(/\.[^.]+$/, '') + suffix + (EXT[fmt] || '');
+
+      resultPreview.src = outputBlobUrl;
+      result.classList.add('show');
+      renderSize(sizeBeforeEl, srcFile.size);
+      animateNumber(sizeAfterEl, blob.size, 900);
+
+      var saved = srcFile.size - blob.size;
+      var dims = outW + ' × ' + outH + ' px';
+      if (saved > 0) {
+        savingsText.innerHTML = '输出 ' + dims + ',体积减少 <strong>' +
+          Math.round((saved / srcFile.size) * 100) + '%</strong>,省下 <strong>' +
+          formatSize(saved).n + ' ' + formatSize(saved).u + '</strong>。';
+      } else {
+        savingsText.innerHTML = '输出 ' + dims + ',但体积反而更大了(多 ' +
+          formatSize(-saved).n + ' ' + formatSize(-saved).u + ')。原图可能已经压得很紧,试试更重的力度或换 WebP。';
+      }
+      result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, fmt, fmt === 'image/png' ? undefined : lv.quality);
+  }
+
+  startBtn.addEventListener('click', process);
+  document.querySelectorAll('input[name="imgLevel"]').forEach(function (r) { r.addEventListener('change', updateLevelDesc); });
+  updateLevelDesc();
+
+  downloadBtn.addEventListener('click', function () {
+    if (!outputBlobUrl) return;
+    var a = document.createElement('a');
+    a.href = outputBlobUrl; a.download = outputFileName;
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+  resetBtn.addEventListener('click', function () {
+    result.classList.remove('show');
+    drop.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    fileInput.click();
+  });
+})();
+
+/* ================= 图片转 PDF ================= */
+(function () {
+  'use strict';
+  var drop = document.getElementById('i2pDrop');
+  var fileInput = document.getElementById('i2pInput');
+  var list = document.getElementById('i2pList');
+  var options = document.getElementById('i2pOptions');
+  var pageDesc = document.getElementById('i2pPageDesc');
+  var startBtn = document.getElementById('i2pStart');
+  var hint = document.getElementById('i2pHint');
+  var errorBox = document.getElementById('i2pError');
+
+  var items = [];   // {file, url, name, size}
+  var busy = false;
+  var PAGE_DESC = {
+    fit: '每页尺寸与图片一致,不留白边',
+    a4p: 'A4 纵向(210×297mm),图片居中等比缩放,四周留白',
+    a4l: 'A4 横向(297×210mm),图片居中等比缩放,四周留白'
+  };
+
+  function showError(m) { errorBox.textContent = m; errorBox.classList.add('show'); }
+  function clearError() { errorBox.classList.remove('show'); }
+  function currentPage() {
+    var c = document.querySelector('input[name="i2pPage"]:checked');
+    return c ? c.value : 'fit';
+  }
+  function updatePageDesc() { pageDesc.innerHTML = '<b>' + (document.querySelector('input[name="i2pPage"]:checked').parentNode.querySelector('.lv-name').textContent) + '</b> — ' + PAGE_DESC[currentPage()]; }
+
+  function render() {
+    list.innerHTML = '';
+    items.forEach(function (it, idx) {
+      var row = document.createElement('div');
+      row.className = 'thumb-item';
+      var s = formatSize(it.size);
+      row.innerHTML =
+        '<span class="thumb-idx">' + (idx + 1) + '</span>' +
+        '<img src="' + it.url + '" alt="">' +
+        '<div class="thumb-meta"><div class="tname"></div><div class="tsize">' + s.n + ' ' + s.u + '</div></div>' +
+        '<div class="thumb-ops">' +
+          '<button class="icon-btn" data-act="up" title="上移"' + (idx === 0 ? ' disabled' : '') + '>↑</button>' +
+          '<button class="icon-btn" data-act="down" title="下移"' + (idx === items.length - 1 ? ' disabled' : '') + '>↓</button>' +
+          '<button class="icon-btn danger" data-act="del" title="移除">✕</button>' +
+        '</div>';
+      row.querySelector('.tname').textContent = it.name;
+      row.querySelectorAll('.icon-btn').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var act = b.dataset.act;
+          if (act === 'del') { URL.revokeObjectURL(it.url); items.splice(idx, 1); }
+          else if (act === 'up' && idx > 0) { items.splice(idx - 1, 0, items.splice(idx, 1)[0]); }
+          else if (act === 'down' && idx < items.length - 1) { items.splice(idx + 1, 0, items.splice(idx, 1)[0]); }
+          render();
+        });
+      });
+      list.appendChild(row);
+    });
+    var has = items.length > 0;
+    list.classList.toggle('show', has);
+    options.style.display = has ? '' : 'none';
+    startBtn.disabled = !has;
+    hint.textContent = has ? (items.length + ' 张图 · 将生成 ' + items.length + ' 页') : '先在上方投入图片';
+  }
+
+  function addFiles(files) {
+    clearError();
+    var added = 0;
+    [].forEach.call(files, function (f) {
+      if (!/^image\//.test(f.type)) return;
+      items.push({ file: f, url: URL.createObjectURL(f), name: f.name, size: f.size });
+      added++;
+    });
+    if (!added) { showError('没有可用的图片文件。'); return; }
+    render();
+  }
+
+  drop.addEventListener('click', function () { fileInput.click(); });
+  drop.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
+  fileInput.addEventListener('change', function () { addFiles(fileInput.files); fileInput.value = ''; });
+  ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('dragover'); }); });
+  ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('dragover'); }); });
+  drop.addEventListener('drop', function (e) { if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+  document.querySelectorAll('input[name="i2pPage"]').forEach(function (r) { r.addEventListener('change', updatePageDesc); });
+  updatePageDesc();
+
+  function loadImage(url) {
+    return new Promise(function (res, rej) {
+      var img = new Image();
+      img.onload = function () { res(img); };
+      img.onerror = function () { rej(new Error('图片解码失败')); };
+      img.src = url;
+    });
+  }
+  // 图片重编码为 JPEG(白底),避免 pdf-lib 无法直接嵌入 WebP
+  function toJpeg(img) {
+    var cv = document.createElement('canvas');
+    cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+    var ctx = cv.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(img, 0, 0);
+    return cv.toDataURL('image/jpeg', 0.92);
+  }
+
+  startBtn.addEventListener('click', async function () {
+    if (busy || !items.length) return;
+    busy = true; clearError();
+    startBtn.disabled = true; hint.textContent = '正在生成…';
+    var A4 = { w: 595.28, h: 841.89 };
+    var mode = currentPage();
+    try {
+      var doc = await PDFLib.PDFDocument.create();
+      for (var i = 0; i < items.length; i++) {
+        hint.textContent = '正在处理第 ' + (i + 1) + ' / ' + items.length + ' 张…';
+        var img = await loadImage(items[i].url);
+        var jpg = await doc.embedJpg(toJpeg(img));
+        var iw = img.naturalWidth, ih = img.naturalHeight;
+        if (mode === 'fit') {
+          var page = doc.addPage([iw, ih]);
+          page.drawImage(jpg, { x: 0, y: 0, width: iw, height: ih });
+        } else {
+          var pw = mode === 'a4l' ? A4.h : A4.w;
+          var ph = mode === 'a4l' ? A4.w : A4.h;
+          var margin = 28;
+          var maxW = pw - margin * 2, maxH = ph - margin * 2;
+          var k = Math.min(maxW / iw, maxH / ih);
+          var dw = iw * k, dh = ih * k;
+          var page2 = doc.addPage([pw, ph]);
+          page2.drawImage(jpg, { x: (pw - dw) / 2, y: (ph - dh) / 2, width: dw, height: dh });
+        }
+      }
+      var bytes = await doc.save();
+      var blob = new Blob([bytes], { type: 'application/pdf' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = '图片合并-' + items.length + '页.pdf';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      hint.textContent = '已生成 ' + items.length + ' 页 · ' + formatSize(blob.size).n + ' ' + formatSize(blob.size).u + ',已开始下载';
+    } catch (err) {
+      showError('生成失败:' + String(err && err.message || err));
+      hint.textContent = items.length + ' 张图 · 可重试';
+    } finally {
+      busy = false; startBtn.disabled = false;
+    }
+  });
+})();
+
+/* ================= 文本工具 ================= */
+(function () {
+  'use strict';
+  var area = document.getElementById('txtArea');
+  var errorBox = document.getElementById('txtError');
+  var stChar = document.getElementById('stChar');
+  var stCharNs = document.getElementById('stCharNs');
+  var stCn = document.getElementById('stCn');
+  var stWord = document.getElementById('stWord');
+  var stLine = document.getElementById('stLine');
+  var stPara = document.getElementById('stPara');
+
+  function count() {
+    var t = area.value;
+    stChar.textContent = t.length;
+    stCharNs.textContent = t.replace(/\s/g, '').length;
+    var cn = t.match(/[一-龥぀-ヿ]/g);
+    stCn.textContent = cn ? cn.length : 0;
+    var w = t.match(/[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*/g);
+    stWord.textContent = w ? w.length : 0;
+    stLine.textContent = t === '' ? 0 : t.split(/\n/).length;
+    var paras = t.split(/\n\s*\n/).filter(function (p) { return p.trim() !== ''; });
+    stPara.textContent = paras.length;
+  }
+
+  function fullToHalf(s) {
+    return s.replace(/[！-～]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xfee0); })
+            .replace(/　/g, ' ');
+  }
+
+  var OPS = {
+    trim: function (t) { return t.split('\n').map(function (l) { return l.replace(/^\s+|\s+$/g, ''); }).join('\n'); },
+    collapse: function (t) { return t.replace(/[ \t　]+/g, ' '); },
+    blank: function (t) { return t.split('\n').filter(function (l) { return l.trim() !== ''; }).join('\n'); },
+    dedup: function (t) {
+      var seen = {}, out = [];
+      t.split('\n').forEach(function (l) { if (!Object.prototype.hasOwnProperty.call(seen, l)) { seen[l] = 1; out.push(l); } });
+      return out.join('\n');
+    },
+    sortAsc: function (t) { return t.split('\n').sort(function (a, b) { return a.localeCompare(b, 'zh'); }).join('\n'); },
+    sortDesc: function (t) { return t.split('\n').sort(function (a, b) { return b.localeCompare(a, 'zh'); }).join('\n'); },
+    upper: function (t) { return t.toUpperCase(); },
+    lower: function (t) { return t.toLowerCase(); },
+    half: fullToHalf
+  };
+
+  document.querySelectorAll('#txtPanel .chip[data-op]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      area.value = OPS[b.dataset.op](area.value);
+      count();
+    });
+  });
+
+  document.getElementById('txtDoReplace').addEventListener('click', function () {
+    errorBox.classList.remove('show');
+    var find = document.getElementById('txtFind').value;
+    var repl = document.getElementById('txtRepl').value;
+    var useRe = document.getElementById('txtRegex').checked;
+    if (find === '') return;
+    try {
+      if (useRe) {
+        area.value = area.value.replace(new RegExp(find, 'g'), repl);
+      } else {
+        area.value = area.value.split(find).join(repl);
+      }
+      count();
+    } catch (e) {
+      errorBox.textContent = '正则表达式有误:' + e.message;
+      errorBox.classList.add('show');
+    }
+  });
+
+  document.getElementById('txtCopy').addEventListener('click', function () {
+    var btn = this;
+    if (!area.value) return;
+    var done = function () { var o = btn.textContent; btn.textContent = '已复制 ✓'; setTimeout(function () { btn.textContent = o; }, 1400); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(area.value).then(done, function () { area.select(); document.execCommand('copy'); done(); });
+    } else { area.select(); document.execCommand('copy'); done(); }
+  });
+  document.getElementById('txtDownload').addEventListener('click', function () {
+    var blob = new Blob([area.value], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = '文本.txt';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  });
+  document.getElementById('txtClear').addEventListener('click', function () { area.value = ''; count(); area.focus(); });
+
+  area.addEventListener('input', count);
+  count();
+})();
+
+/* ================= 二维码 ================= */
+(function () {
+  'use strict';
+  var errorBox = document.getElementById('qrError');
+  var genBtn = document.getElementById('qrGen');
+  var stage = document.getElementById('qrStage');
+  var frame = document.getElementById('qrFrame');
+  var textFields = document.getElementById('qrTextFields');
+  var wifiFields = document.getElementById('qrWifiFields');
+  var qrObj = null;
+
+  if (!window.QRCode) {
+    genBtn.disabled = true;
+    errorBox.textContent = '二维码库加载失败,请检查网络后刷新页面(需要访问 cdnjs.cloudflare.com)。';
+    errorBox.classList.add('show');
+  }
+
+  function currentType() { var c = document.querySelector('input[name="qrType"]:checked'); return c ? c.value : 'text'; }
+  function syncType() {
+    var t = currentType();
+    textFields.style.display = t === 'text' ? '' : 'none';
+    wifiFields.classList.toggle('show', t === 'wifi');
+  }
+  document.querySelectorAll('input[name="qrType"]').forEach(function (r) { r.addEventListener('change', syncType); });
+  syncType();
+
+  function escapeWifi(s) { return s.replace(/([\\;,:"])/g, '\\$1'); }
+
+  function buildContent() {
+    if (currentType() === 'wifi') {
+      var ssid = document.getElementById('qrSsid').value;
+      if (!ssid) return null;
+      var enc = document.querySelector('input[name="qrEnc"]:checked').value;
+      var pass = document.getElementById('qrPass').value;
+      if (enc === 'nopass') return 'WIFI:T:nopass;S:' + escapeWifi(ssid) + ';;';
+      return 'WIFI:T:WPA;S:' + escapeWifi(ssid) + ';P:' + escapeWifi(pass) + ';;';
+    }
+    var v = document.getElementById('qrText').value.trim();
+    return v || null;
+  }
+
+  genBtn.addEventListener('click', function () {
+    errorBox.classList.remove('show');
+    var content = buildContent();
+    if (!content) { errorBox.textContent = currentType() === 'wifi' ? '请至少填写 WiFi 名称。' : '请输入内容。'; errorBox.classList.add('show'); return; }
+    frame.innerHTML = '';
+    try {
+      qrObj = new QRCode(frame, {
+        text: content,
+        width: 480, height: 480,
+        colorDark: '#1a1712',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      stage.classList.add('show');
+      stage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (e) {
+      errorBox.textContent = '生成失败:内容可能过长。' + e.message;
+      errorBox.classList.add('show');
+    }
+  });
+
+  document.getElementById('qrDownload').addEventListener('click', function () {
+    var canvas = frame.querySelector('canvas');
+    var img = frame.querySelector('img');
+    var dataUrl = canvas ? canvas.toDataURL('image/png') : (img ? img.src : null);
+    if (!dataUrl) return;
+    var a = document.createElement('a');
+    a.href = dataUrl; a.download = '二维码.png';
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+})();
+
+/* 防止拖到页面其他位置时浏览器直接打开文件 */
+['dragover', 'drop'].forEach(function (ev) {
+  document.addEventListener(ev, function (e) { e.preventDefault(); });
+});
+</script>
+</body>
+</html>
