@@ -2,9 +2,19 @@
 
 实用的办公自动化小工具集合。
 
-## 工具列表
+## 目录结构
 
-### 1. Excel 图片批量插入工具（excel_image_inserter.py）
+```
+office-toolbox/
+├── 图片插入表格/          # 项目1：Excel 图片批量插入工具
+│   ├── excel_image_inserter.py
+│   └── requirements.txt
+├── 办公工具箱/            # 项目2：办公工具箱 HTML 工具页
+│   └── 办公工具箱.html
+└── .github/workflows/    # Windows EXE 自动打包工作流
+```
+
+## 项目1：Excel 图片批量插入工具（图片插入表格/）
 
 根据 Excel 指定列的单元格内容匹配图片文件名，将图片批量嵌入单元格或插入图片超链接。
 
@@ -20,10 +30,14 @@
 **使用方法**
 
 ```bash
-pip install openpyxl Pillow
-python excel_image_inserter.py
+pip install -r 图片插入表格/requirements.txt
+python 图片插入表格/excel_image_inserter.py
 ```
 
 **Windows 可执行文件**
 
 在 [Releases](../../releases) 页面下载打包好的 `excel_image_inserter.exe`，双击即可运行，无需安装 Python 环境。
+
+## 项目2：办公工具箱 HTML 工具页（办公工具箱/）
+
+单文件 HTML 工具页，浏览器直接打开 `办公工具箱.html` 即可使用。

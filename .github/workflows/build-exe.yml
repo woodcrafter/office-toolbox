@@ -19,10 +19,10 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r 图片插入表格/requirements.txt
 
       - name: Build EXE with PyInstaller
-        run: pyinstaller --onefile --windowed --name excel_image_inserter excel_image_inserter.py
+        run: pyinstaller --onefile --windowed --name excel_image_inserter 图片插入表格/excel_image_inserter.py
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
