@@ -19,9 +19,11 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
+        shell: bash
         run: pip install -r 图片插入表格/requirements.txt
 
       - name: Build EXE with PyInstaller
+        shell: bash
         run: pyinstaller --onefile --windowed --name excel_image_inserter 图片插入表格/excel_image_inserter.py
 
       - name: Upload EXE artifact
