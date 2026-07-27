@@ -1,0 +1,14 @@
+# 本地数据，不提交到公开仓库
+胶图/
+*.xlsx
+*.xlsm
+
+# Python
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
+
+# macOS
+.DS_Store
