@@ -37,7 +37,10 @@ python 图片插入表格/excel_image_inserter.py
 
 **Windows 可执行文件**
 
-在 [Releases](../../releases) 页面下载打包好的 `excel_image_inserter.exe`，双击即可运行，无需安装 Python 环境。
+在 [Releases](../../releases) 页面下载打包好的 exe，双击即可运行，无需安装 Python 环境：
+
+- `excel_image_inserter.exe` — 悬浮图片 / 超链接版
+- `excel_cell_image_embedder.exe` — 真嵌入单元格版（WPS / Excel 365）
 
 ## 项目1b：Excel 图片真嵌入单元格工具（excel_cell_image_embedder.py）
 

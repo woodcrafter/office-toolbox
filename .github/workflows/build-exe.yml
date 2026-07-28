@@ -24,7 +24,9 @@ jobs:
 
       - name: Build EXE with PyInstaller
         shell: bash
-        run: pyinstaller --onefile --windowed --name excel_image_inserter 图片插入表格/excel_image_inserter.py
+        run: |
+          pyinstaller --onefile --windowed --name excel_image_inserter 图片插入表格/excel_image_inserter.py
+          pyinstaller --onefile --windowed --name excel_cell_image_embedder 图片插入表格/excel_cell_image_embedder.py
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
@@ -32,10 +34,18 @@ jobs:
           name: excel_image_inserter-windows
           path: dist/excel_image_inserter.exe
 
+      - name: Upload embedder EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: excel_cell_image_embedder-windows
+          path: dist/excel_cell_image_embedder.exe
+
       - name: Create Release with EXE
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
           name: Release v${{ github.run_number }}
-          files: dist/excel_image_inserter.exe
+          files: |
+            dist/excel_image_inserter.exe
+            dist/excel_cell_image_embedder.exe
