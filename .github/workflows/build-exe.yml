@@ -18,15 +18,23 @@ jobs:
         with:
           python-version: "3.12"
 
+      # 中文路径在 Windows runner 的 bash 中会因编码问题失败，
+      # 先用通配符（纯 ASCII）把源文件复制到 ASCII 目录再构建。
       - name: Install dependencies
         shell: bash
-        run: pip install -r 图片插入表格/requirements.txt
+        run: |
+          mkdir -p ascii_build
+          cp */excel_image_inserter.py */excel_cell_image_embedder.py */requirements.txt ascii_build/
+          pip install -r ascii_build/requirements.txt
 
       - name: Build EXE with PyInstaller
         shell: bash
         run: |
-          pyinstaller --onefile --windowed --name excel_image_inserter 图片插入表格/excel_image_inserter.py
-          pyinstaller --onefile --windowed --name excel_cell_image_embedder 图片插入表格/excel_cell_image_embedder.py
+          cd ascii_build
+          pyinstaller --onefile --windowed --name excel_image_inserter excel_image_inserter.py
+          pyinstaller --onefile --windowed --name excel_cell_image_embedder excel_cell_image_embedder.py
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          cp dist/*.exe "$GITHUB_WORKSPACE/dist/"
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
